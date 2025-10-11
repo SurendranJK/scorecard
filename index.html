@@ -4,16 +4,10 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ScoreCard — Hewlett Packard Enterprise</title>
-
-<!-- Simple HPE-like theme (no logos) -->
 <style>
   :root{
-    --hpe-blue: #00739D;
-    --hpe-dark: #0b3b4a;
-    --muted: #4d5a63;
-    --bg: #f4f7f8;
-    --panel: #ffffff;
-    --panel-weak: #f1f7fb;
+    --hpe-blue:#00739D; --hpe-dark:#0b3b4a; --muted:#4d5a63;
+    --bg:#f4f7f8; --panel:#ffffff; --panel-weak:#f1f7fb;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:Inter, "Segoe UI", Arial;color:var(--muted);background:var(--bg);-webkit-font-smoothing:antialiased}
@@ -22,7 +16,6 @@
   .brand{display:flex;align-items:center;gap:12px}
   .brand .title{font-weight:700;color:var(--hpe-blue);font-size:20px}
   .brand .subtitle{font-size:13px;color:#2c4b56}
-  .user{font-size:13px;color:#123;opacity:.9}
   .controls{display:flex;gap:8px;align-items:center}
   .controls select, .controls button{padding:8px 10px;border-radius:8px;border:1px solid #d7e6eb;background:white}
   .main-card{margin-top:16px;background:var(--panel);border-radius:12px;padding:18px;box-shadow:0 8px 28px rgba(10,20,30,0.06)}
@@ -41,15 +34,8 @@
   .actions{display:flex;gap:10px;align-items:center}
   .small{font-size:12px;padding:6px 8px}
   .bottom-note{margin-top:12px;color:#66787f;font-size:13px}
-  @media (max-width:980px){
-    .grid{grid-template-columns:1fr}
-    .stat-card{min-width:unset}
-  }
-  /* print */
-  @media print{
-    .controls, .topbar .actions {display:none}
-    body{background:white}
-  }
+  @media (max-width:980px){.grid{grid-template-columns:1fr}.stat-card{min-width:unset}}
+  @media print{.controls, .topbar .actions {display:none} body{background:white}}
 </style>
 </head>
 <body>
@@ -62,8 +48,8 @@
         </div>
       </div>
       <div class="controls">
-        <div class="muted">Period</div>
-        <select id="periodSelect" title="Select period"></select>
+        <div class="muted">Month</div>
+        <select id="monthSelect" title="Select month"></select>
         <button id="apply" class="small">Apply</button>
         <div class="actions">
           <button id="refresh" class="small">Refresh</button>
@@ -76,9 +62,7 @@
       <div id="status" class="muted">Loading data…</div>
 
       <div id="contentArea" style="display:none">
-        <div class="top-stats" id="topStats">
-          <!-- stat-cards injected here -->
-        </div>
+        <div class="top-stats" id="topStats"></div>
 
         <div class="grid">
           <div class="panel" id="leftPanel">
@@ -100,35 +84,28 @@
   </div>
 
 <script>
-/*
-  HPE-like ScoreCard UI
-  - Uses OpenSheet JSON (replace the URL if your sheet changes)
-  - Tolerant header detection, handles title-row issues
-  - Period selector supports Period/Year+Month fields
-  - Keeps robust debug info if employee or period not found
-*/
-
+/* Full UI with Month (formatted names). Update OPENSHEET if your sheet changes. */
 (async function(){
-  // ---------- CONFIG ----------
   const OPENSHEET = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
-  const AUTO_REFRESH_MS = 0; // set >0 ms to auto refresh
+  const AUTO_REFRESH_MS = 0;
   const params = new URLSearchParams(window.location.search);
   const EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
   const URL_YEAR = params.get('year');
   const URL_MONTH = params.get('month');
 
-  // DOM refs
   const status = document.getElementById('status');
   const contentArea = document.getElementById('contentArea');
   const debugBox = document.getElementById('debugBox');
   const topStats = document.getElementById('topStats');
   const pmpiArea = document.getElementById('pmpiArea');
   const riderArea = document.getElementById('riderArea');
-  const periodSelect = document.getElementById('periodSelect');
+  const monthSelect = document.getElementById('monthSelect');
   const btnApply = document.getElementById('apply');
   const btnRefresh = document.getElementById('refresh');
   const btnPrint = document.getElementById('print');
+
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
   function showStatus(msg, error=false){
     status.innerHTML = error ? '<span style="color:#8b1a1a">'+msg+'</span>' : '<span style="color:green">'+msg+'</span>';
@@ -141,7 +118,6 @@
     return r.json();
   }
 
-  // handle OpenSheet title-row oddities by using second row as headers if needed
   function normalize(rows){
     if (!rows || !rows.length) return [];
     const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
@@ -207,7 +183,6 @@
   }
 
   function renderTopStats(rec){
-    // animated reveal
     topStats.innerHTML = '';
     const rows = [
       {label:'Engineer Name', val: rec[ findKey(rec,['name','engineer']) ] || rec['Engineer Name'] || ''},
@@ -225,23 +200,19 @@
       div.className = 'stat-card';
       div.innerHTML = `<div class="stat-label">${r.label}</div><div class="stat-value">${r.val}</div>`;
       topStats.appendChild(div);
-      // stagger reveal
       setTimeout(()=>div.classList.add('show'), 120 * i);
     });
   }
 
   function renderPMPI(rec){
     pmpiArea.innerHTML = '<div class="muted">No PMPI data</div>';
-    // try to find any PMPI key
-    const key = findKey(rec, ['pmpi','p m p i','pmpi score','pm pi']);
+    const key = findKey(rec, ['pmpi','p m p i','pm pi','pmpi score']);
     if (!key) return;
     let data = [];
     try { data = JSON.parse(rec[key]); }
     catch(e){
-      // try CSV-like parse
       const s = String(rec[key]||'').trim();
       if (!s) return;
-      // assume lines "param|actual|score"
       data = s.split(/\r?\n/).map(line=>{
         const parts = line.split('|').map(x=>x.trim());
         return {param:parts[0], actual:parts[1], score:parts[2]};
@@ -256,7 +227,6 @@
 
   function renderRiders(rec){
     riderArea.innerHTML = '<div class="muted">No Riders/Parameters</div>';
-    // look for riders key
     const riderKey = findKey(rec, ['rider','riders']);
     const paramKey = findKey(rec, ['parameter','parameters','param']);
     let html = '';
@@ -283,28 +253,24 @@
     if (html) riderArea.innerHTML = html;
   }
 
-  // Main loader
   async function load(){
     try {
       const raw = await fetchSheet();
       const rows = normalize(raw || []);
       if (!rows.length) {
-        showStatus('No data in sheet', true);
-        return;
+        showStatus('No data in sheet', true); return;
       }
       showStatus('Sheet loaded — ' + rows.length + ' rows');
-      // collect periods and populate dropdown
       const periods = collectPeriods(rows);
-      periodSelect.innerHTML = '<option value="">Latest</option>';
+      monthSelect.innerHTML = '<option value="">Latest</option>';
       periods.forEach(p => {
-        const o = document.createElement('option'); o.value = p; o.textContent = p; periodSelect.appendChild(o);
+        const [y,m] = p.split('-');
+        const formatted = (monthNames[parseInt(m,10)-1] || m) + ' ' + y;
+        const o = document.createElement('option'); o.value = p; o.textContent = formatted; monthSelect.appendChild(o);
       });
-      if (URL_PERIOD) periodSelect.value = URL_PERIOD;
-
-      // determine target period
+      if (URL_PERIOD) monthSelect.value = URL_PERIOD;
       let target = URL_PERIOD || (URL_YEAR && URL_MONTH ? `${URL_YEAR}-${String(URL_MONTH).padStart(2,'0')}` : '');
       if (!target && periods.length) target = periods[0];
-
       const rec = findRecord(rows, EMP_ID, target);
       if (!rec) {
         showStatus(`Employee ${EMP_ID || '(none)'} not found for ${target || 'latest'}`, true);
@@ -313,26 +279,22 @@
         contentArea.style.display = 'none';
         return;
       }
-
-      // render content
       contentArea.style.display = 'block';
       debugBox.style.display = 'none';
       renderTopStats(rec);
       renderPMPI(rec);
       renderRiders(rec);
-      showStatus(`Showing ${EMP_ID}${target ? ' — ' + target : ''}`);
+      showStatus(`Showing ${EMP_ID}${target ? ' — ' + (monthNames[parseInt(target.split('-')[1],10)-1] + ' ' + target.split('-')[0]) : ''}`);
     } catch (err) {
       showStatus('Error: ' + err.message, true);
       console.error(err);
     }
   }
 
-  // initial
   await load();
 
-  // events
   btnApply.onclick = () => {
-    const v = periodSelect.value;
+    const v = monthSelect.value;
     const q = new URLSearchParams(window.location.search);
     if (v) q.set('period', v); else q.delete('period');
     window.location.search = q.toString();
@@ -341,7 +303,6 @@
   btnPrint.onclick = () => window.print();
 
   if (AUTO_REFRESH_MS > 0) setInterval(load, AUTO_REFRESH_MS);
-
 })();
 </script>
 </body>

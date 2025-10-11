@@ -34,6 +34,7 @@
   thead th{background:var(--hpe-blue);color:white;font-weight:600}
   .muted{color:#64767d;font-size:13px}
   .bottom-note{margin-top:12px;color:#66787f;font-size:13px}
+  .welcome {font-size:15px; font-weight:600; color:var(--hpe-dark); margin-left:12px;}
   @media (max-width:980px){.grid{grid-template-columns:1fr}.stat-card{min-width:unset}}
   @media print{.controls{display:none} body{background:white}}
 </style>
@@ -41,6 +42,266 @@
 <body>
 <div class="container">
   <div class="topbar">
-    <div class="brand">
-      <div class="title">ScoreCard</div>
-      <div class="subtitle">Hewlett Packard Enterprise — Live Performa
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="brand">
+        <div class="title">ScoreCard</div>
+        <div class="subtitle">Hewlett Packard Enterprise — Live Performance</div>
+      </div>
+      <div id="welcomeName" class="welcome" style="display:none"></div>
+    </div>
+
+    <div class="controls">
+      <div style="display:flex;flex-direction:column">
+        <label>Employee ID</label>
+        <input id="empInput" type="text" placeholder="Enter EmpID" style="width:140px">
+      </div>
+      <div style="display:flex;flex-direction:column">
+        <label>Month</label>
+        <select id="monthSelect" title="Select month"></select>
+      </div>
+      <button id="apply">Apply</button>
+      <button id="refresh">Refresh</button>
+      <button id="print">Print</button>
+    </div>
+  </div>
+
+  <div class="main-card">
+    <div id="status" class="muted">Loading data…</div>
+
+    <div id="contentArea" style="display:none">
+      <div class="top-stats" id="topStats"></div>
+      <div class="grid">
+        <div class="panel"><h3>PMPI Score</h3><div id="pmpiArea" class="muted">Loading PMPI…</div></div>
+        <div class="panel"><h3>Riders / Parameters</h3><div id="riderArea" class="muted">Loading Riders…</div></div>
+      </div>
+      <div class="bottom-note">Make sure your Google Sheet is published (File → Publish to the web). Data updates when sheet updates.</div>
+    </div>
+
+    <div id="debugBox" style="display:none;margin-top:12px;padding:10px;background:#fff6f6;border:1px solid #ffd6d6;border-radius:8px;color:#8b1a1a"></div>
+  </div>
+</div>
+
+<script>
+(async function(){
+  const OPENSHEET = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
+  const params = new URLSearchParams(window.location.search);
+  const URL_PERIOD = (params.get('period') || '').trim();
+  const URL_YEAR = params.get('year'); const URL_MONTH = params.get('month');
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  const status = document.getElementById('status');
+  const contentArea = document.getElementById('contentArea');
+  const debugBox = document.getElementById('debugBox');
+  const topStats = document.getElementById('topStats');
+  const pmpiArea = document.getElementById('pmpiArea');
+  const riderArea = document.getElementById('riderArea');
+  const monthSelect = document.getElementById('monthSelect');
+  const empInput = document.getElementById('empInput');
+  const applyBtn = document.getElementById('apply');
+  const refreshBtn = document.getElementById('refresh');
+  const printBtn = document.getElementById('print');
+  const welcomeEl = document.getElementById('welcomeName');
+
+  const initialId = (params.get('id') || '').trim();
+  if(initialId) empInput.value = initialId;
+
+  function showStatus(msg, error=false){
+    status.innerHTML = error ? '<span style="color:#8b1a1a">'+msg+'</span>' : '<span style="color:green">'+msg+'</span>';
+  }
+
+  async function fetchSheet(){
+    const r = await fetch(OPENSHEET,{cache:'no-store'});
+    if(!r.ok) throw new Error('Fetch failed: '+r.status);
+    return r.json();
+  }
+
+  function normalize(rows){
+    if(!rows || !rows.length) return [];
+    const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
+    const looksLikeTitle = firstKeys.length===1 || firstKeys.every(k=>/^[\d\W]+$/.test(k) || k.length<4);
+    if(looksLikeTitle && rows.length>1){
+      const headers = Object.values(rows[1]).map(v=>String(v||'').trim());
+      const dataRows = rows.slice(2);
+      if(headers.every(h=>h)){
+        return dataRows.map(r=>{
+          const vals = Object.values(r);
+          const obj = {};
+          headers.forEach((h,i)=> obj[h] = vals[i] ?? '');
+          return obj;
+        });
+      }
+    }
+    return rows;
+  }
+
+  function collectPeriods(rows){
+    const ks=Object.keys(rows[0]||{});
+    const periodKey=ks.find(k=>/period/i.test(k));
+    if(periodKey) return [...new Set(rows.map(r=>String(r[periodKey]||'').trim()).filter(Boolean))].sort().reverse();
+    const yearKey=ks.find(k=>/year/i.test(k));
+    const monthKey=ks.find(k=>/month/i.test(k));
+    if(yearKey && monthKey){
+      const set=new Set();
+      rows.forEach(r=>{
+        const y=String(r[yearKey]||'').trim();
+        let m=String(r[monthKey]||'').trim();
+        if(m && m.length===1) m='0'+m;
+        if(y && m) set.add(`${y}-${m}`);
+      });
+      return [...set].sort().reverse();
+    }
+    return [];
+  }
+
+  function detectIdKey(row){
+    return Object.keys(row||{}).find(k=>/emp|id/i.test(k)) || Object.keys(row||{})[0];
+  }
+
+  function findRecord(rows,emp,period){
+    const idKey = detectIdKey(rows[0]||{});
+    const ks = Object.keys(rows[0]||{});
+    const periodKey = ks.find(k=>/period|year/i.test(k));
+    if(period && periodKey) {
+      return rows.find(r => (String(r[idKey]||'').trim() === emp) && (String(r[periodKey]||'').trim() === period));
+    }
+    const matches = rows.filter(r => String(r[idKey]||'').trim() === emp);
+    return matches.length ? matches[0] : null;
+  }
+
+  function findKey(rec,pats){
+    const ks = Object.keys(rec||{});
+    for(const p of pats){
+      const re = new RegExp(p,'i');
+      const found = ks.find(k => re.test(k));
+      if(found) return found;
+    }
+    return null;
+  }
+
+  function renderTopStats(rec){
+    topStats.innerHTML='';
+    const rowsData=[
+      {label:'Engineer Name',val:rec[findKey(rec,['name','engineer'])] || rec['Engineer Name'] || ''},
+      {label:'Onsite Response Met%',val:rec[findKey(rec,['onsite','response'])] || rec['Onsite Response Met%'] || '--'},
+      {label:'Overall SLA%',val:rec[findKey(rec,['overall','SLA'])] || rec['Overall SLA%'] || '--'},
+      {label:'TOTAL CLOSED VOLUME',val:rec[findKey(rec,['total','volume','closed'])] || rec['TOTAL CLOSED VOLUME'] || '--'},
+      {label:'TTR Hours (Official)',val:rec[findKey(rec,['ttr'])] || '--'},
+      {label:'100% DA',val:rec[findKey(rec,['da','100%'])] || rec['100% DA'] || '--'},
+      {label:'PPMD',val:rec[findKey(rec,['ppmd'])] || '--'},
+      {label:'PPMC',val:rec[findKey(rec,['ppmc'])] || '--'},
+      {label:'ECASE SLA HG',val:rec[findKey(rec,['hg','ECASE SLA HG'])] || rec['ECASE SLA_HG'] || '--'}
+    ];
+    rowsData.forEach((r,i)=>{
+      const div=document.createElement('div');
+      div.className='stat-card';
+      div.innerHTML=`<div class="stat-label">${r.label}</div><div class="stat-value">${r.val}</div>`;
+      topStats.appendChild(div);
+      setTimeout(()=>div.classList.add('show'),100*i);
+    });
+  }
+
+  function renderPMPI(rec){
+    pmpiArea.innerHTML = '<div class="muted">No PMPI data</div>';
+    const key = findKey(rec, ['pmpi','pm pi']);
+    if(!key) return;
+    let data = [];
+    try { data = JSON.parse(rec[key]); }
+    catch(e){
+      const s = String(rec[key]||'').trim();
+      if(!s) return;
+      data = s.split(/\r?\n/).map(l=>{
+        const parts = l.split('|').map(x=>x.trim());
+        return {param:parts[0], actual:parts[1], score:parts[2]};
+      }).filter(x=>x.param);
+    }
+    if(!data.length) return;
+    let html = '<table><thead><tr><th>Parameters</th><th>Actual</th><th>PMPI Score</th></tr></thead><tbody>';
+    data.forEach(d=> html += `<tr><td>${d.param||''}</td><td>${d.actual||''}</td><td>${d.score||''}</td></tr>`);
+    html += '</tbody></table>';
+    pmpiArea.innerHTML = html;
+  }
+
+  function renderRiders(rec){
+    riderArea.innerHTML = '<div class="muted">No Riders/Parameters</div>';
+    const riderKey = findKey(rec, ['rider','riders']);
+    const paramKey = findKey(rec, ['parameter','param']);
+    let html = '';
+    if(riderKey && rec[riderKey]) {
+      try {
+        const arr = JSON.parse(rec[riderKey]);
+        if(Array.isArray(arr) && arr.length){
+          html += '<h4>Riders</h4><table><thead><tr><th>Parameter</th><th>Actual</th><th>Score</th></tr></thead><tbody>';
+          arr.forEach(a=> html += `<tr><td>${a.param||a[0]||''}</td><td>${a.actual||a[1]||''}</td><td>${a.score||a[2]||''}</td></tr>`);
+          html += '</tbody></table>';
+        }
+      } catch(e){}
+    }
+    if(paramKey && rec[paramKey]) {
+      try {
+        const parr = JSON.parse(rec[paramKey]);
+        if(Array.isArray(parr) && parr.length){
+          html += '<h4>Parameters</h4><table><thead><tr><th>Parameter</th><th>Score</th></tr></thead><tbody>';
+          parr.forEach(p=> html += `<tr><td>${p.param||p[0]||''}</td><td>${p.score||p[1]||''}</td></tr>`);
+          html += '</tbody></table>';
+        }
+      } catch(e){}
+    }
+    if(html) riderArea.innerHTML = html;
+  }
+
+  async function load(){
+    try {
+      const raw = await fetch(OPENSHEET);
+      const rows = normalize(raw || []);
+      if(!rows.length){ showStatus('No data in sheet', true); return; }
+      const periods = collectPeriods(rows);
+      monthSelect.innerHTML = '<option value="">Latest</option>';
+      periods.forEach(p => {
+        const [y,m] = p.split('-');
+        const formatted = (monthNames[parseInt(m,10)-1] || m) + ' ' + y;
+        const o = document.createElement('option'); o.value = p; o.textContent = formatted; monthSelect.appendChild(o);
+      });
+      if(URL_PERIOD) monthSelect.value = URL_PERIOD;
+      let target = URL_PERIOD || (URL_YEAR && URL_MONTH ? `${URL_YEAR}-${String(URL_MONTH).padStart(2,'0')}` : '');
+      if(!target && periods.length) target = periods[0];
+      const empVal = (empInput.value || '').trim();
+      if(!empVal){ showStatus('Please enter your Employee ID', true); contentArea.style.display='none'; return; }
+      const rec = findRecord(rows, empVal, target);
+      if(!rec){
+        showStatus(`Employee ${empVal} not found for ${target || 'latest'}`, true);
+        debugBox.style.display='block'; debugBox.innerHTML = '<strong>Columns:</strong><br>' + Object.keys(rows[0]).join(', ');
+        contentArea.style.display='none'; welcomeEl.style.display='none';
+        return;
+      }
+      // show welcome (engineer name)
+      const nameKey = findKey(rec, ['name','engineer']) || 'Name';
+      const displayName = rec[nameKey] || rec['Engineer Name'] || rec['Name'] || empVal;
+      welcomeEl.textContent = 'Welcome, ' + displayName;
+      welcomeEl.style.display = 'inline-block';
+
+      contentArea.style.display='block'; debugBox.style.display='none';
+      renderTopStats(rec); renderPMPI(rec); renderRiders(rec);
+      showStatus(`Showing ${empVal} — ${(target ? ((monthNames[parseInt(target.split('-')[1],10)-1] || '') + ' ' + target.split('-')[0]) : 'latest')}`);
+    } catch(err) {
+      showStatus('Error: ' + err.message, true);
+      console.error(err);
+    }
+  }
+
+  applyBtn.onclick = () => {
+    const q = new URLSearchParams(window.location.search);
+    const id = (empInput.value || '').trim(); if(id) q.set('id', id); else q.delete('id');
+    const per = (monthSelect.value || '').trim(); if(per) q.set('period', per); else q.delete('period');
+    window.history.replaceState({}, '', window.location.pathname + '?' + q.toString());
+    load();
+  };
+  empInput.addEventListener('keydown', e => { if(e.key === 'Enter') applyBtn.click(); });
+  refreshBtn.onclick = () => load();
+  printBtn.onclick = () => window.print();
+
+  // initial load
+  await load();
+})();
+</script>
+</body>
+</html>

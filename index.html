@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>HPE ScoreCard — Targets from Sheet (Per-Employee & Monthly)</title>
+<title>HPE ScoreCard — Targets from Sheet (Per-Employee & Monthly, Avg Volume)</title>
 <style>
   :root{--hpe-blue:#00739D;--muted:#5f6f76;--bg:#f4f7f8}
   body{font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);margin:0;color:var(--muted)}
@@ -74,12 +74,11 @@
 
 <script>
 (async function(){
-  // CONFIG: change SHEET_ID if necessary
+  // CONFIG: update sheet id if needed
   const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
 
-  // PARAMETERS to display and check (order matters)
   const PARAMETERS = [
     "Onsite Response Met%",
     "Overall SLA%",
@@ -92,7 +91,6 @@
     "ECASE SLA_HG"
   ];
 
-  // FALLBACK TARGETS (only used if targets sheet missing or metric missing)
   const FALLBACK_TARGETS = {
     "Onsite Response Met%": 0.90,
     "Overall SLA%": 0.99,
@@ -103,7 +101,7 @@
     "ECASE SLA_HG": 0.95
   };
 
-  // DOM refs
+  // DOM
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
   const applyBtn = document.getElementById('apply');
@@ -115,13 +113,11 @@
   const missingTargetsEl = document.getElementById('missingTargets');
   const missingDataEl = document.getElementById('missingData');
 
-  // URL params
   const params = new URLSearchParams(window.location.search);
   let EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
   if (EMP_ID) empInput.value = EMP_ID;
 
-  // Helpers
   function setStatus(msg, isError=false){
     statusEl.textContent = msg;
     statusEl.style.color = isError ? '#8b1a1a' : '#0b6b5d';
@@ -131,7 +127,7 @@
     if (!r.ok) throw new Error('Failed to fetch ' + url + ' (' + r.status + ')');
     return r.json();
   }
-  // OpenSheet sometimes returns data with a title-row; normalize to array of objects with proper headers
+
   function normalize(rows){
     if (!rows || !rows.length) return [];
     const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
@@ -150,6 +146,7 @@
     }
     return rows;
   }
+
   function parseNumeric(v){
     if (v == null || v === '') return null;
     const s = String(v).trim();
@@ -163,6 +160,7 @@
     if (n > 0 && n <= 1) return n;
     return n;
   }
+
   function formatDisplay(val){
     if (val == null) return '--';
     if (typeof val === 'number') {
@@ -171,6 +169,7 @@
     }
     return String(val);
   }
+
   function findKey(obj, names){
     const keys = Object.keys(obj||{});
     for (const n of names) {
@@ -184,21 +183,34 @@
     }
     return null;
   }
+
   function lowerIsBetter(metric){
     return /ttr|hour|ppmd/i.test(metric);
   }
+
   function meetsTarget(metric, scoreVal, targetVal){
     if (scoreVal == null || targetVal == null) return null;
     if (lowerIsBetter(metric)) return scoreVal <= targetVal;
     return scoreVal >= targetVal;
   }
 
-  // Compute ranks for the given period using effectiveTargets (object keyed by metric)
+  // compute average TOTAL CLOSED VOLUME for the period (ignores nulls)
+  function computeAverageTotalClosed(rowsForPeriod) {
+    const key = rowsForPeriod.length ? findKey(rowsForPeriod[0], ['TOTAL CLOSED VOLUME','Total Closed Volume','TotalClosedVolume']) : null;
+    if (!key) return null;
+    let sum = 0, count = 0;
+    rowsForPeriod.forEach(r => {
+      const v = parseNumeric(r[key]);
+      if (v != null) { sum += v; count++; }
+    });
+    return count ? (sum / count) : null;
+  }
+
   function computeRanks(rowsForPeriod, effectiveTargets){
     const entries = rowsForPeriod.map(r => {
       let met = 0, considered = 0;
       PARAMETERS.forEach(metric => {
-        if (metric === 'TOTAL CLOSED VOLUME') return;
+        if (metric === 'TOTAL CLOSED VOLUME') return; // not part of "met" count (we use as tie-break / target only)
         const k = findKey(r, [metric]);
         const scoreRaw = k ? r[k] : null;
         const scoreNum = parseNumeric(scoreRaw);
@@ -265,13 +277,11 @@
     engineerIdEl.textContent = 'ID: —';
     stackRankEl.textContent = 'Stack Rank: —';
 
-    // filter rows for the chosen period
     const rowsForPeriod = allScores.filter(r => {
       const pkey = findKey(r, ['Period','period']);
       return pkey && String(r[pkey]||'').trim() === String(period).trim();
     });
 
-    // find the engineer row
     const empRow = rowsForPeriod.find(r => {
       const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
       return idKey && String(r[idKey]||'').trim() === String(empId).trim();
@@ -284,7 +294,7 @@
       return;
     }
 
-    // try to find a target row for this period that matches Employee ID (per-engineer target)
+    // find per-employee target row (period & emp)
     let targetRowForPeriodAndEmp = null;
     if (allTargets && allTargets.length) {
       targetRowForPeriodAndEmp = allTargets.find(r => {
@@ -292,7 +302,6 @@
         if (!pKey) return false;
         const pVal = String(r[pKey]||'').trim();
         if (pVal !== String(period).trim()) return false;
-        // check emp id match if present in targets row
         const tEmpKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
         if (tEmpKey) {
           return String(r[tEmpKey]||'').trim() === String(empId).trim();
@@ -301,7 +310,7 @@
       });
     }
 
-    // find a period-level target row
+    // find period-level target row
     let targetRowForPeriod = null;
     if (allTargets && allTargets.length) {
       targetRowForPeriod = allTargets.find(r => {
@@ -310,9 +319,12 @@
       });
     }
 
-    // build effectiveTargets: prefer per-employee row, else period row, else fallback defaults
+    // compute average TOTAL CLOSED VOLUME for period (used if target not provided)
+    const avgTotalClosed = computeAverageTotalClosed(rowsForPeriod); // number or null
+
     const effectiveTargets = {};
     PARAMETERS.forEach(metric => {
+      // precedence: per-employee targets row -> period targets row -> fallback -> computed avg for TOTAL CLOSED VOLUME
       if (targetRowForPeriodAndEmp) {
         const k = findKey(targetRowForPeriodAndEmp, [metric, metric.replace(/ /g,''), metric.replace(/_/g,' ')]);
         if (k) { effectiveTargets[metric] = targetRowForPeriodAndEmp[k]; return; }
@@ -321,21 +333,24 @@
         const k = findKey(targetRowForPeriod, [metric, metric.replace(/ /g,''), metric.replace(/_/g,' ')]);
         if (k) { effectiveTargets[metric] = targetRowForPeriod[k]; return; }
       }
-      if (FALLBACK_TARGETS[metric] !== undefined) effectiveTargets[metric] = FALLBACK_TARGETS[metric];
-      else effectiveTargets[metric] = null;
+      if (metric === 'TOTAL CLOSED VOLUME') {
+        // use computed average if present
+        effectiveTargets[metric] = (avgTotalClosed != null) ? avgTotalClosed : null;
+        return;
+      }
+      if (FALLBACK_TARGETS[metric] !== undefined) { effectiveTargets[metric] = FALLBACK_TARGETS[metric]; return; }
+      effectiveTargets[metric] = null;
     });
 
     if (!allTargets.length) {
       missingTargetsEl.style.display = 'block';
-      missingTargetsEl.innerHTML = `<div class="no-data">No <strong>targets</strong> sheet found or it's empty — using fallback targets where available. To manage targets per-month or per-engineer, add a 'targets' tab with Period column and optional Employee ID.</div>`;
+      missingTargetsEl.innerHTML = `<div class="no-data">No <strong>targets</strong> sheet found or it's empty — using fallback targets and computed average for TOTAL CLOSED VOLUME where available.</div>`;
     } else if (!targetRowForPeriod && !targetRowForPeriodAndEmp) {
       missingTargetsEl.style.display = 'block';
-      missingTargetsEl.innerHTML = `<div class="no-data">No target row found for <strong>${period}</strong> in the targets sheet; using fallback targets where metrics are missing.</div>`;
-    } else if (targetRowForPeriodAndEmp) {
-      missingTargetsEl.style.display = 'none';
+      missingTargetsEl.innerHTML = `<div class="no-data">No target row found for <strong>${period}</strong> in the targets sheet; using fallback targets and computed average for TOTAL CLOSED VOLUME where available.</div>`;
     }
 
-    // compute ranking entries for the period to get stack rank
+    // compute ranking entries for the period
     const rankingEntries = computeRanks(rowsForPeriod, effectiveTargets);
     const myEntry = rankingEntries.find(e => String(e.empId) === String(empId));
     if (myEntry) stackRankEl.textContent = 'Stack Rank: ' + myEntry.rank;
@@ -355,16 +370,37 @@
       const scoreKey = findKey(empRow, [metric, metric.replace(/ /g,''), metric.replace(/_/g,' ')]);
       const scoreRaw = scoreKey ? empRow[scoreKey] : null;
       const scoreNum = parseNumeric(scoreRaw);
+
       const met = (targetNum != null && scoreNum != null) ? meetsTarget(metric, scoreNum, targetNum) : null;
       const scoreClass = met === null ? '' : (met ? 'good' : 'bad');
-      const targetDisplay = targetNum != null ? formatDisplay(targetNum) : '--';
-      const scoreDisplay = scoreNum != null ? formatDisplay(scoreNum) : (scoreRaw ? String(scoreRaw) : '--');
+
+      // special: if metric is TOTAL CLOSED VOLUME and effectiveTargets came from computed avg,
+      // we'll format average (targetNum) as integer (no percent)
+      const targetDisplay = (metric === 'TOTAL CLOSED VOLUME' && targetNum != null) ? (Math.round(targetNum).toString()) : (targetNum != null ? formatDisplay(targetNum) : '--');
+      const scoreDisplay = scoreNum != null ? (metric === 'TOTAL CLOSED VOLUME' ? (Math.round(scoreNum).toString()) : formatDisplay(scoreNum)) : (scoreRaw ? String(scoreRaw) : '--');
+
       const tr = document.createElement('tr');
       tr.innerHTML = `<td class="col-param">${metric}</td>
                       <td class="col-target">${targetDisplay}</td>
                       <td class="col-score"><span class="${scoreClass}">${scoreDisplay}</span></td>`;
       tbody.appendChild(tr);
     });
+
+    // small helper message if avg was used
+    if (avgTotalClosed != null) {
+      const note = document.createElement('div');
+      note.style.marginTop = '10px';
+      note.style.fontSize = '13px';
+      note.style.color = '#4d6a6f';
+      note.textContent = `TOTAL CLOSED VOLUME target for ${period} = average across engineers = ${Math.round(avgTotalClosed)} (used if no explicit target provided).`;
+      // append just under table
+      const contentDiv = document.getElementById('content');
+      // remove previous note if any
+      const prev = contentDiv.querySelector('.avg-note');
+      if (prev) prev.remove();
+      note.className = 'avg-note';
+      contentDiv.appendChild(note);
+    }
 
     setStatus(`Showing ${engineerNameEl.textContent} — ${period}`);
   }
@@ -376,13 +412,12 @@
           const [s,t] = await Promise.all([fetchJson(URL_SCORES), fetchJson(URL_TARGETS)]);
           return {scores: normalize(s||[]), targets: normalize(t||[])};
         } catch(e) {
-          // if targets fetch fails, still try scores
           const s = await fetchJson(URL_SCORES);
           return {scores: normalize(s||[]), targets: []};
         }
       })();
 
-      // populate months from scores
+      // populate months
       const periodSet = new Set();
       scores.forEach(r => {
         const pk = findKey(r, ['Period','period']);
@@ -395,7 +430,7 @@
         const [y,m] = p.split('-');
         let label = p;
         if (y && m && m.length) {
-          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'long'}) + ' ' + y; } catch(e) {}
+          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'long'}) + ' ' + y; } catch(e){}
         }
         monthSelect.appendChild(new Option(label,p));
       });
@@ -425,7 +460,6 @@
     }
   }
 
-  // start
   await boot();
 
 })();

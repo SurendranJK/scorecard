@@ -3,130 +3,146 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Scorecard — Debug</title>
+  <title>My Scorecard</title>
   <style>
-    body{font-family:Segoe UI,Roboto,Arial; background:#f5f7fa; color:#233; padding:18px;}
-    .wrap{max-width:980px;margin:18px auto;background:#fff;padding:18px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.06);}
-    .muted{color:#666;font-size:13px}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{border:1px solid #e6e9ee;padding:8px;text-align:left;font-size:13px}
-    pre{background:#0b1220;color:#dbeafe;padding:12px;border-radius:6px;overflow:auto}
-    .notfound{padding:18px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;border-radius:6px}
-    .ok{padding:12px;background:#f0fff4;border:1px solid #bde7c8;color:#165b2d;border-radius:6px}
+    :root{--accent:#00739D;--muted:#425563}
+    body{font-family:Segoe UI,Roboto,Arial;background:#f3f6f8;margin:0;padding:24px;color:var(--muted)}
+    .wrap{max-width:920px;margin:24px auto;background:#fff;padding:20px;border-radius:10px;box-shadow:0 6px 20px rgba(10,20,30,0.06)}
+    header{display:flex;justify-content:space-between;align-items:center}
+    header h1{color:var(--accent);margin:0;font-size:20px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+    .card{background:#fafbfd;padding:16px;border-radius:8px;border:1px solid #eef3f6}
+    .label{font-size:13px;color:#6b7b86}
+    .value{font-weight:700;font-size:20px;color:#243b4a;margin-top:6px}
+    .wide{grid-column:span 3}
+    .muted{color:#6b7b86}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h2>Scorecard (debug view)</h2>
-    <p class="muted">This page reads your Google Sheet JSON and displays the record for the requested employee id. Use <code>?id=YOUR_EMP_ID</code> in the URL.</p>
+    <header>
+      <h1>My Scorecard</h1>
+      <div class="muted">Open with <code>?id=60154741</code></div>
+    </header>
 
-    <div id="status" class="muted">Initializing…</div>
+    <div id="content" style="margin-top:16px">Loading…</div>
 
-    <hr/>
-
-    <div id="result"></div>
-
-    <hr/>
-    <h4>Debug / loaded data preview (first 10 rows)</h4>
-    <div id="preview"><em>Waiting for load...</em></div>
-
-    <hr/>
-    <h4>Notes</h4>
-    <ul class="muted">
-      <li>Make sure you open the page with <code>?id=60154741</code> (example).</li>
-      <li>If employee not found, check exact header name in sheet (case-sensitive). This page helps show those headers.</li>
-    </ul>
+    <div style="margin-top:14px;color:#6b7b86;font-size:13px">
+      Make sure your sheet is published (File → Publish to the web). If nothing shows, refresh after 15s.
+    </div>
   </div>
 
 <script>
 (async function(){
-  const sheetJsonUrl = "https://opensheet.elk.sh/1H7pPn9knLcaGZ8inmykqAmZMqCNnCtX2aV5uBn7m84M/scores";
-  const statusEl = document.getElementById('status');
-  const resultEl = document.getElementById('result');
-  const previewEl = document.getElementById('preview');
+  // <-- YOUR working OpenSheet URL (already filled)
+  const sheetJson = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
 
-  statusEl.textContent = 'Fetching sheet JSON…';
+  const params = new URLSearchParams(window.location.search);
+  const empId = (params.get('id') || '').trim();
+
+  const content = document.getElementById('content');
 
   try {
-    const res = await fetch(sheetJsonUrl);
-    if (!res.ok) throw new Error('HTTP ' + res.status + ' - ' + res.statusText);
-    const data = await res.json();
+    const res = await fetch(sheetJson);
+    if (!res.ok) throw new Error('Fetch failed: ' + res.status);
+    const rows = await res.json();
 
-    statusEl.innerHTML = `<span class="ok">Sheet loaded. ${data.length} rows.</span>`;
-
-    // Show preview
-    const previewRows = data.slice(0,10);
-    if (previewRows.length === 0) {
-      previewEl.innerHTML = '<div class="notfound">Sheet is empty or headers missing.</div>';
-    } else {
-      // build table of first 10 rows
-      const keys = Object.keys(previewRows[0]);
-      let html = '<table><thead><tr>' + keys.map(k=>`<th>${k}</th>`).join('') + '</tr></thead><tbody>';
-      previewRows.forEach(r=>{
-        html += '<tr>' + keys.map(k=>`<td>${(r[k]===undefined||r[k]==='')? '&nbsp;' : String(r[k])}</td>`).join('') + '</tr>';
-      });
-      html += '</tbody></table>';
-      previewEl.innerHTML = html;
-    }
-
-    // get id param
-    const params = new URLSearchParams(window.location.search);
-    const empId = params.get('id');
+    // show helpful preview if no id provided
     if (!empId) {
-      resultEl.innerHTML = `<div class="notfound"><strong>No ?id= provided.</strong> Example: <code>?id=60154741</code></div>`;
+      content.innerHTML = `<div class="muted">No ?id= provided. Example: <code>?id=60154741</code></div>
+        <div style="margin-top:12px" class="muted">Preview (first row): <pre style="white-space:pre-wrap">${JSON.stringify(rows[0]||{},null,2)}</pre></div>`;
       return;
     }
 
-    // tolerant matching for EmpID column (case variations)
-    const possibleIdKeys = ['EmpID','empid','EmpId','empId','ID','Id','id','EmployeeID','EmployeeId','employeeid'];
-    let idKey = null;
-    const sample = data[0] || {};
-    for (const k of Object.keys(sample)) {
-      if (possibleIdKeys.includes(k)) { idKey = k; break; }
-    }
-    // if still not found, try to auto-detect numeric-looking header
-    if (!idKey) {
-      for (const k of Object.keys(sample)) {
-        // pick any header that contains 'id' (case-insensitive)
-        if (k.toLowerCase().includes('id')) { idKey = k; break; }
-      }
-    }
-    // fallback: use first header if nothing else
-    if (!idKey) idKey = Object.keys(sample)[0];
+    // detect Emp ID column (tolerant)
+    const idKey = Object.keys(rows[0]||{}).find(k=>/emp/i.test(k)) || Object.keys(rows[0]||{})[1];
 
-    // find record by comparing strings trimmed
-    const record = data.find(r => {
-      const v = r[idKey];
-      return v !== undefined && String(v).trim() === String(empId).trim();
+    const record = rows.find(r => {
+      const val = r[idKey] ?? r['Employee ID'] ?? r['EmpID'] ?? r['empid'] ?? r['ID'];
+      return val !== undefined && String(val).trim() === empId;
     });
 
     if (!record) {
-      resultEl.innerHTML = `<div class="notfound"><strong>Employee ID <code>${empId}</code> not found.</strong><br/>Detected ID header: <code>${idKey}</code>. Please verify the value in your sheet matches exactly (no extra spaces).</div>`;
+      content.innerHTML = `<div style="padding:12px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;border-radius:6px">Employee <b>${empId}</b> not found. Detected ID header: <code>${idKey}</code>. Preview first row keys: <pre style="white-space:pre-wrap">${Object.keys(rows[0]||{}).join(', ')}</pre></div>`;
       return;
     }
 
-    // Display record nicely - show common fields and then raw JSON
-    const nameKey = Object.keys(record).find(k=>/name/i.test(k)) || 'Name';
-    const totalKey = Object.keys(record).find(k=>/total/i.test(k)) || 'TotalScore';
-    const rankKey = Object.keys(record).find(k=>/rank/i.test(k)) || 'StackRank';
-    const incentiveKey = Object.keys(record).find(k=>/incent/i.test(k)) || 'Incentive';
+    // find keys (flexible)
+    const findKey = (patterns) => {
+      const ks = Object.keys(record);
+      for (const p of patterns) {
+        const regex = new RegExp(p, 'i');
+        const found = ks.find(k => regex.test(k));
+        if (found) return found;
+      }
+      return null;
+    };
 
-    let outHtml = `<h3>${record[nameKey] || '—'}</h3>`;
-    outHtml += `<p><b>${idKey}:</b> ${record[idKey] || '—'}</p>`;
-    outHtml += `<p><b>Total Score:</b> ${record[totalKey] || '—'}</p>`;
-    outHtml += `<p><b>Stack Rank:</b> ${record[rankKey] || '—'}</p>`;
-    outHtml += `<p><b>Incentive:</b> ${record[incentiveKey] || '—'}</p>`;
-    outHtml += `<details style="margin-top:12px"><summary>Full row JSON</summary><pre>${JSON.stringify(record, null, 2)}</pre></details>`;
+    const nameKey = findKey(['name','engineer']);
+    const onsiteKey = findKey(['onsite','Onsite Response']);
+    const overallKey = findKey(['overall','Overall SLA']);
+    const totalClosedKey = findKey(['total','TOTAL CLOSED','TotalClosed']);
+    const ttrKey = findKey(['ttr','TTR']);
+    const daKey = findKey(['100% DA','DA','DA_100']);
+    const ppmdKey = findKey(['PPMD']);
+    const ppmcKey = findKey(['PPMC']);
+    const ecaseM2MKey = findKey(['ECASE\\s*SLA\\s*M2M','M2M']);
+    const ecaseHGKey = findKey(['ECASE\\s*SLA\\s*HG','HG']);
 
-    resultEl.innerHTML = outHtml;
+    // render UI
+    content.innerHTML = `
+      <div class="grid">
+        <div class="card">
+          <div class="label">Engineer Name</div>
+          <div class="value">${record[nameKey] || record['Engineer Name'] || '--'}</div>
+        </div>
+        <div class="card">
+          <div class="label">Onsite Response Met%</div>
+          <div class="value">${record[onsiteKey] || '--'}</div>
+        </div>
+        <div class="card">
+          <div class="label">Overall SLA%</div>
+          <div class="value">${record[overallKey] || '--'}</div>
+        </div>
 
+        <div class="card">
+          <div class="label">TOTAL CLOSED VOLUME</div>
+          <div class="value">${record[totalClosedKey] || '--'}</div>
+        </div>
+        <div class="card">
+          <div class="label">TTR Hours (Official)</div>
+          <div class="value">${record[ttrKey] || '--'}</div>
+        </div>
+        <div class="card">
+          <div class="label">100% DA</div>
+          <div class="value">${record[daKey] || '--'}</div>
+        </div>
+
+        <div class="card">
+          <div class="label">PPMD</div>
+          <div class="value">${record[ppmdKey] || '--'}</div>
+        </div>
+        <div class="card">
+          <div class="label">PPMC</div>
+          <div class="value">${record[ppmcKey] || '--'}</div>
+        </div>
+
+        <div class="card">
+          <div class="label">ECASE SLA M2M</div>
+          <div class="value">${record[ecaseM2MKey] || '--'}</div>
+        </div>
+        <div class="card">
+          <div class="label">ECASE SLA HG</div>
+          <div class="value">${record[ecaseHGKey] || '--'}</div>
+        </div>
+      </div>
+    `;
   } catch (err) {
-    statusEl.innerHTML = `<div class="notfound">Error fetching sheet: ${err.message}</div>`;
-    previewEl.innerHTML = '';
+    content.innerHTML = `<div style="color:#8b1a1a">Error loading sheet: ${err.message}</div>`;
     console.error(err);
   }
 })();
 </script>
-
 </body>
 </html>

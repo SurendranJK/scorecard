@@ -5,10 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ScoreCard — Hewlett Packard Enterprise</title>
 <style>
-  :root{
-    --hpe-blue:#00739D; --hpe-dark:#0b3b4a; --muted:#4d5a63;
-    --bg:#f4f7f8; --panel:#ffffff; --panel-weak:#f1f7fb;
-  }
+  :root{--hpe-blue:#00739D;--hpe-dark:#0b3b4a;--muted:#4d5a63;--bg:#f4f7f8;--panel:#ffffff;--panel-weak:#f1f7fb}
   *{box-sizing:border-box}
   body{margin:0;font-family:Inter, "Segoe UI", Arial;color:var(--muted);background:var(--bg);-webkit-font-smoothing:antialiased}
   .container{max-width:1200px;margin:28px auto;padding:18px}
@@ -17,7 +14,7 @@
   .brand .title{font-weight:700;color:var(--hpe-blue);font-size:20px}
   .brand .subtitle{font-size:13px;color:#2c4b56}
   .controls{display:flex;gap:8px;align-items:center}
-  .controls select, .controls button{padding:8px 10px;border-radius:8px;border:1px solid #d7e6eb;background:white}
+  .controls select,.controls button,.controls input{padding:8px 10px;border-radius:8px;border:1px solid #d7e6eb;background:white}
   .main-card{margin-top:16px;background:var(--panel);border-radius:12px;padding:18px;box-shadow:0 8px 28px rgba(10,20,30,0.06)}
   .top-stats{display:flex;gap:14px;flex-wrap:wrap}
   .stat-card{flex:1 1 30%;min-width:220px;background:var(--panel-weak);padding:18px;border-radius:8px;border:1px solid #e5f0f5;opacity:0;transform:translateY(8px);transition:all .45s ease}
@@ -36,6 +33,10 @@
   .bottom-note{margin-top:12px;color:#66787f;font-size:13px}
   @media (max-width:980px){.grid{grid-template-columns:1fr}.stat-card{min-width:unset}}
   @media print{.controls, .topbar .actions {display:none} body{background:white}}
+  /* top-right small form styles */
+  .right-controls {display:flex; align-items:center; gap:8px;}
+  .id-input {width:120px}
+  .label-inline {font-size:13px;color:#6b7b86;margin-right:6px}
 </style>
 </head>
 <body>
@@ -47,11 +48,15 @@
           <div class="subtitle">Hewlett Packard Enterprise — Live Performance</div>
         </div>
       </div>
+
+      <!-- Controls (now includes Employee ID input) -->
       <div class="controls">
         <div class="muted">Month</div>
         <select id="monthSelect" title="Select month"></select>
-        <button id="apply" class="small">Apply</button>
-        <div class="actions">
+        <div class="right-controls">
+          <span class="label-inline">Employee ID</span>
+          <input id="empInput" class="id-input" type="text" placeholder="eg 60154741" />
+          <button id="apply" class="small">Apply</button>
           <button id="refresh" class="small">Refresh</button>
           <button id="print" class="small">Print</button>
         </div>
@@ -84,17 +89,19 @@
   </div>
 
 <script>
-/* Full UI with Month (formatted names). Update OPENSHEET if your sheet changes. */
 (async function(){
-  // --- EDIT ONLY THIS URL IF YOUR SHEET CHANGES ---
+  // --- Config --- (change only this if you move sheet)
   const OPENSHEET = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
-  const AUTO_REFRESH_MS = 0; // >0 to auto refresh interval in ms
+  const AUTO_REFRESH_MS = 0;
+
   const params = new URLSearchParams(window.location.search);
-  const EMP_ID = (params.get('id') || '').trim();
+  // prefer URL param but allow override from input
+  let EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
   const URL_YEAR = params.get('year');
   const URL_MONTH = params.get('month');
 
+  // DOM refs
   const status = document.getElementById('status');
   const contentArea = document.getElementById('contentArea');
   const debugBox = document.getElementById('debugBox');
@@ -102,11 +109,15 @@
   const pmpiArea = document.getElementById('pmpiArea');
   const riderArea = document.getElementById('riderArea');
   const monthSelect = document.getElementById('monthSelect');
+  const empInput = document.getElementById('empInput');
   const btnApply = document.getElementById('apply');
   const btnRefresh = document.getElementById('refresh');
   const btnPrint = document.getElementById('print');
 
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  // set input from URL if present
+  if (EMP_ID) empInput.value = EMP_ID;
 
   function showStatus(msg, error=false){
     status.innerHTML = error ? '<span style="color:#8b1a1a">'+msg+'</span>' : '<span style="color:green">'+msg+'</span>';
@@ -119,7 +130,6 @@
     return r.json();
   }
 
-  // If sheet has a top title row, use second row as headers
   function normalize(rows){
     if (!rows || !rows.length) return [];
     const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
@@ -143,7 +153,6 @@
     const ks = Object.keys(rows[0]||{});
     const periodKey = ks.find(k=>/period/i.test(k));
     if (periodKey) return [...new Set(rows.map(r=>String(r[periodKey]||'').trim()).filter(Boolean))].sort().reverse();
-
     const yearKey = ks.find(k=>/year/i.test(k));
     const monthKey = ks.find(k=>/month/i.test(k));
     if (yearKey && monthKey){
@@ -257,11 +266,11 @@
 
   async function load(){
     try {
-      const raw = await fetchSheet();
+      const r = await fetch(OPENSHEET, {cache:'no-store'});
+      if (!r.ok) throw new Error('Failed to fetch sheet: ' + r.status);
+      const raw = await r.json();
       const rows = normalize(raw || []);
-      if (!rows.length) {
-        showStatus('No data in sheet', true); return;
-      }
+      if (!rows.length) { showStatus('No data in sheet', true); return; }
       showStatus('Sheet loaded — ' + rows.length + ' rows');
       const periods = collectPeriods(rows);
       monthSelect.innerHTML = '<option value="">Latest</option>';
@@ -271,6 +280,9 @@
         const o = document.createElement('option'); o.value = p; o.textContent = formatted; monthSelect.appendChild(o);
       });
       if (URL_PERIOD) monthSelect.value = URL_PERIOD;
+      // if user typed ID in input box, prefer it; else use URL param
+      EMP_ID = (empInput.value || EMP_ID || '').trim();
+      if (EMP_ID) empInput.value = EMP_ID;
       let target = URL_PERIOD || (URL_YEAR && URL_MONTH ? `${URL_YEAR}-${String(URL_MONTH).padStart(2,'0')}` : '');
       if (!target && periods.length) target = periods[0];
       const rec = findRecord(rows, EMP_ID, target);
@@ -288,19 +300,24 @@
       renderRiders(rec);
       showStatus(`Showing ${EMP_ID}${target ? ' — ' + (monthNames[parseInt(target.split('-')[1],10)-1] + ' ' + target.split('-')[0]) : ''}`);
     } catch (err) {
-      showStatus('Error: ' + err.message, true);
-      console.error(err);
+      showStatus('Error: ' + err.message, true); console.error(err);
     }
   }
 
+  // initial load
   await load();
 
+  // Apply button: update URL with id and period (so page is shareable)
   btnApply.onclick = () => {
-    const v = monthSelect.value;
+    const chosenMonth = monthSelect.value;
+    const typedId = (empInput.value || '').trim();
     const q = new URLSearchParams(window.location.search);
-    if (v) q.set('period', v); else q.delete('period');
+    if (typedId) q.set('id', typedId);
+    if (chosenMonth) q.set('period', chosenMonth); else q.delete('period');
+    // update location - this triggers a reload so new URL is applied
     window.location.search = q.toString();
   };
+
   btnRefresh.onclick = () => load();
   btnPrint.onclick = () => window.print();
 

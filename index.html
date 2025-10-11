@@ -1,258 +1,173 @@
-/**
- * Compute Stack Ranks per Period based on targets met and write back to the "scores" sheet.
- * - Looks for a sheet named "scores" (case-sensitive).
- * - If a sheet named "targets" exists, uses that row matching Period (YYYY-MM).
- * - Otherwise uses default target values defined below.
- *
- * New columns written in "scores":
- *   TargetsMet  (integer)
- *   ScorePercent (0-100 numeric)
- *   StackRank   (1 = best for that Period)
- *
- * Author: generated for you
- */
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HPE Scorecard — Stack Rank</title>
+<style>
+body{font-family:Inter,Arial;background:#f7fafb;margin:0;color:#425563}
+header{display:flex;justify-content:space-between;align-items:center;padding:20px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.05)}
+h1{margin:0;color:#00739D;font-size:22px}
+main{padding:20px}
+input,select,button{padding:8px 10px;border-radius:6px;border:1px solid #ccd;}
+button{background:#00739D;color:white;border:none;cursor:pointer}
+table{width:100%;border-collapse:collapse;margin-top:20px;background:white;border-radius:8px;overflow:hidden}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #eee}
+th{background:#00739D;color:white}
+td.good{color:green;font-weight:600}
+td.bad{color:red;font-weight:600}
+.top-right{text-align:right}
+.stat{font-size:14px;margin:3px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>HPE Engineer Scorecard</h1>
+  <div class="top-right">
+    <div id="engineerName" class="stat">Engineer: —</div>
+    <div id="engineerId" class="stat">ID: —</div>
+    <div id="stackRank" class="stat">Stack Rank: —</div>
+  </div>
+</header>
 
-function computeStackRanks() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const scoresSheet = ss.getSheetByName('scores');
-  if (!scoresSheet) {
-    SpreadsheetApp.getUi().alert('No sheet named "scores" found. Rename your data tab to "scores".');
-    return;
-  }
+<main>
+  <div>
+    <label>Month:</label>
+    <select id="monthSelect"></select>
+    <label style="margin-left:10px;">Employee ID:</label>
+    <input id="empInput" placeholder="60154741">
+    <button id="apply">Apply</button>
+  </div>
 
-  // Try to fetch targets sheet (optional)
-  const targetsSheet = ss.getSheetByName('targets');
+  <div id="status" style="margin-top:10px;color:#00739D"></div>
+  <table id="scoreTable">
+    <thead>
+      <tr><th>Parameter</th><th>Target</th><th>Score</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</main>
 
-  // Default targets (fallback if no targets sheet or row for period)
-  const DEFAULT_TARGETS = {
-    // fractions for percent-like: store as decimal (0.92 = 92%)
-    "100% DA": 0.92,
-    "TTR Hours(Official)": 30,
-    "PPMD": 1.13,
-    "ECASE SLA_M2M": 0.97,
-    "ECASE SLA_HG": 0.95,
-    "Onsite Response Met%": 0.90,
-    "Overall SLA%": 0.0 // optional - if you want set a target for Overall SLA put value here as decimal
-  };
+<script>
+(async function(){
+const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
+const URL = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
+const TARGETS = {
+  "Onsite Response Met%":0.90,
+  "Overall SLA%":0.99,
+  "TTR Hours(Official)":30,
+  "100% DA":0.92,
+  "PPMD":1.13,
+  "ECASE SLA_M2M":0.97,
+  "ECASE SLA_HG":0.95
+};
 
-  // Helper: case-insensitive find column name among headers
-  function findColName(headers, pattern) {
-    const re = new RegExp(pattern, 'i');
-    for (const h of headers) {
-      if (h && re.test(h.toString())) return h;
-    }
-    return null;
-  }
+const empInput=document.getElementById('empInput');
+const monthSelect=document.getElementById('monthSelect');
+const applyBtn=document.getElementById('apply');
+const tbody=document.querySelector('#scoreTable tbody');
+const engineerName=document.getElementById('engineerName');
+const engineerId=document.getElementById('engineerId');
+const stackRank=document.getElementById('stackRank');
+const status=document.getElementById('status');
 
-  // Read scores sheet header + data
-  const scoresRange = scoresSheet.getDataRange();
-  const scoresValues = scoresRange.getValues(); // 2D array
-  if (scoresValues.length < 2) {
-    SpreadsheetApp.getUi().alert('scores sheet has no data rows.');
-    return;
-  }
-  let headers = scoresValues[0].map(h => (h || '').toString().trim());
+let DATA=[];
 
-  // Ensure we have a Period column in the scores sheet
-  const periodHeader = headers.find(h => /period/i.test(h));
-  if (!periodHeader) {
-    SpreadsheetApp.getUi().alert('scores sheet must contain a Period column (header containing "Period").');
-    return;
-  }
-
-  // Identify key columns (flexible matching)
-  const empIdHeader = headers.find(h => /emp|id/i.test(h)) || headers[0];
-  const nameHeader = headers.find(h => /engineer|name/i.test(h)) || null;
-  const onsiteHeader = headers.find(h => /onsite/i.test(h)) || null;
-  const overallHeader = headers.find(h => /overall.*sla|overall sla|overall/i.test(h)) || null;
-  const totalClosedHeader = headers.find(h => /total.*closed|total.*volume|total closed volume/i.test(h)) || null;
-  const ttrHeader = headers.find(h => /ttr|hours/i.test(h)) || null;
-  const daHeader = headers.find(h => /100%.*da|100% DA|100%DA|100 percent da/i.test(h)) || headers.find(h => /100.*da/i) || null;
-  const ppmdHeader = headers.find(h => /ppmd/i.test(h)) || null;
-  const ppmcHeader = headers.find(h => /ppmc/i.test(h)) || null;
-  const ecaseMHeader = headers.find(h => /ecase.*m2m|e.?case.*m/i.test(h)) || headers.find(h => /ECASE SLA_M2M/i) || null;
-  const ecaseHHeader = headers.find(h => /ecase.*hg|e.?case.*h/i.test(h)) || headers.find(h => /ECASE SLA_HG/i) || null;
-
-  // Determine where to write result columns (append if not exists)
-  let targetsMetCol = headers.find(h => /^TargetsMet$/i.test(h));
-  let scorePercentCol = headers.find(h => /^ScorePercent$/i.test(h));
-  let stackRankCol = headers.find(h => /^StackRank$/i.test(h));
-
-  let writeStartCol = headers.length + 1;
-  if (!targetsMetCol) { targetsMetCol = 'TargetsMet'; headers.push(targetsMetCol); }
-  if (!scorePercentCol) { scorePercentCol = 'ScorePercent'; headers.push(scorePercentCol); }
-  if (!stackRankCol) { stackRankCol = 'StackRank'; headers.push(stackRankCol); }
-
-  // If we added any headers, write them back to sheet header row
-  scoresSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-
-  // Build a map of targets per period if targets sheet exists
-  const targetsByPeriod = {};
-  if (targetsSheet) {
-    const tRange = targetsSheet.getDataRange();
-    const tVals = tRange.getValues();
-    if (tVals.length >= 2) {
-      const tHeaders = tVals[0].map(h => (h || '').toString().trim());
-      const periodIdx = tHeaders.findIndex(h => /period/i.test(h));
-      for (let r = 1; r < tVals.length; r++) {
-        const row = tVals[r];
-        const periodVal = (row[periodIdx] || '').toString().trim();
-        if (!periodVal) continue;
-        const obj = {};
-        tHeaders.forEach((h,i) => {
-          if (!h) return;
-          obj[h] = row[i];
-        });
-        targetsByPeriod[periodVal] = obj;
-      }
-    }
-  }
-
-  // Helper to parse numeric / percent values
-  function parseNumericCell(v) {
-    if (v === null || v === undefined || v === '') return null;
-    const s = String(v).trim();
-    // percent string
-    if (s.indexOf('%') !== -1) {
-      const n = parseFloat(s.replace('%','').replace(/,/g,''));
-      return isNaN(n) ? null : n/100;
-    }
-    const n = parseFloat(s.replace(/,/g,''));
-    if (isNaN(n)) return null;
-    if (n > 0 && n <= 1) return n; // fraction form
-    return n;
-  }
-
-  // Collect rows grouped by period for ranking
-  const rowsByPeriod = {}; // { period: [ {rowIndex, rowObj, targetsMet, scorePercent, totalClosed} ] }
-  const headerIndex = {}; headers.forEach((h,i) => headerIndex[h] = i); // map header->col-index
-
-  // iterate data rows
-  for (let r = 1; r < scoresValues.length; r++) {
-    const row = scoresValues[r];
-    const rowObj = {};
-    headers.forEach((h, idx) => {
-      // For existing data columns (original columns) take from row; appended columns may be undefined
-      rowObj[h] = (row[idx] !== undefined) ? row[idx] : '';
-    });
-    // Obtain the Period value from original data (use header discovery)
-    const originalPeriodHeader = scoresValues[0].find(h => /period/i.test(h)) || 'Period';
-    const periodVal = (row[ headers.indexOf(originalPeriodHeader) ] || '').toString().trim();
-    if (!periodVal) continue;
-
-    // Get the targets for this period: from targetsByPeriod if present, else DEFAULT_TARGETS
-    const targetObj = targetsByPeriod[periodVal] || null;
-
-    // Build target lookup for each metric using either targetObj or defaults
-    const getTarget = (metricKeys, defaultKey) => {
-      if (targetObj) {
-        // find matching key in targetObj case-insensitive
-        const found = Object.keys(targetObj).find(k => {
-          return metricKeys.some(pk => String(k).trim().toLowerCase() === String(pk).trim().toLowerCase());
-        });
-        if (found) return parseNumericCell(targetObj[found]);
-      }
-      // fallback default
-      return DEFAULT_TARGETS[defaultKey] !== undefined ? DEFAULT_TARGETS[defaultKey] : null;
-    };
-
-    const targetsToCheck = [
-      {label: 'Onsite Response Met%', target: getTarget(['Onsite Response Met%', 'Onsite Response Met'], 'Onsite Response Met%'), value: parseNumericCell(row[ headers.indexOf(onsiteHeader) ]) , higherIsBetter: true},
-      {label: 'Overall SLA%', target: getTarget(['Overall SLA%','Overall SLA'], 'Overall SLA%'), value: parseNumericCell(row[ headers.indexOf(overallHeader) ]), higherIsBetter: true},
-      {label: 'TTR Hours(Official)', target: getTarget(['TTR Hours(Official)','TTR Hours (Official)','TTR'], 'TTR Hours(Official)'), value: parseNumericCell(row[ headers.indexOf(ttrHeader) ]), higherIsBetter: false},
-      {label: '100% DA', target: getTarget(['100% DA','DA','100%DA'], '100% DA'), value: parseNumericCell(row[ headers.indexOf(daHeader) ]), higherIsBetter: true},
-      {label: 'PPMD', target: getTarget(['PPMD'], 'PPMD'), value: parseNumericCell(row[ headers.indexOf(ppmdHeader) ]), higherIsBetter: false},
-      {label: 'ECASE SLA_M2M', target: getTarget(['ECASE SLA_M2M','ECASE SLA M2M','ECASE M2M'], 'ECASE SLA_M2M'), value: parseNumericCell(row[ headers.indexOf(ecaseMHeader) ]), higherIsBetter: true},
-      {label: 'ECASE SLA_HG', target: getTarget(['ECASE SLA_HG','ECASE SLA HG','ECASE HG'], 'ECASE SLA_HG'), value: parseNumericCell(row[ headers.indexOf(ecaseHHeader) ]), higherIsBetter: true},
-      // You could add more metrics here if you want to count them
-    ];
-
-    // Count how many metrics are met
-    let metCount = 0;
-    let metricsConsidered = 0;
-    targetsToCheck.forEach(m=>{
-      const tgt = m.target;
-      const val = m.value;
-      if (tgt === null || tgt === undefined) {
-        // skip metric if no target available
-        return;
-      }
-      metricsConsidered++;
-      if (val === null || val === undefined) {
-        // not met if absent
-        return;
-      }
-      if (m.higherIsBetter) {
-        if (val >= tgt) metCount++;
-      } else {
-        if (val <= tgt) metCount++;
-      }
-    });
-
-    // Score percent: percent of considered metrics met (scale to 0..100)
-    const scorePercent = metricsConsidered > 0 ? (metCount / metricsConsidered) * 100 : 0;
-
-    // Total closed volume for tie-break (parse numeric)
-    const totalClosed = totalClosedHeader ? parseNumericCell(row[ headers.indexOf(totalClosedHeader) ]) : null;
-
-    // accumulate
-    if (!rowsByPeriod[periodVal]) rowsByPeriod[periodVal] = [];
-    rowsByPeriod[periodVal].push({
-      rowIndex: r+1,                           // actual sheet row index (1-based, header is row 1)
-      empId: (row[ headers.indexOf(empIdHeader) ] || '').toString().trim(),
-      name: nameHeader ? (row[ headers.indexOf(nameHeader) ] || '') : '',
-      metCount,
-      scorePercent,
-      totalClosed: (totalClosed !== null && totalClosed !== undefined) ? Number(totalClosed) : -1
-    });
-  }
-
-  // For each period, compute ranking and write back values to the sheet
-  const outRangeWrites = []; // we'll collect [row, col, value] writes
-  Object.keys(rowsByPeriod).forEach(period => {
-    const list = rowsByPeriod[period];
-    // sort by scorePercent desc, then totalClosed desc
-    list.sort((a,b) => {
-      if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
-      return (b.totalClosed || 0) - (a.totalClosed || 0);
-    });
-
-    // assign dense ranks
-    let rank = 0;
-    let prevScore = null;
-    list.forEach((entry, idx) => {
-      if (prevScore === null || entry.scorePercent !== prevScore) {
-        rank = idx + 1;
-      }
-      prevScore = entry.scorePercent;
-
-      // prepare writes (find column indices)
-      // TargetsMet write column index:
-      const targetsMetColIdx = headers.indexOf('TargetsMet') + 1;
-      const scorePercentColIdx = headers.indexOf('ScorePercent') + 1;
-      const stackRankColIdx = headers.indexOf('StackRank') + 1;
-
-      outRangeWrites.push({row: entry.rowIndex, col: targetsMetColIdx, value: entry.metCount});
-      outRangeWrites.push({row: entry.rowIndex, col: scorePercentColIdx, value: Number(entry.scorePercent.toFixed(2))});
-      outRangeWrites.push({row: entry.rowIndex, col: stackRankColIdx, value: rank});
-    });
-  });
-
-  // Bulk write collected values to sheet
-  // We'll group by row to minimize calls
-  const writesByRow = {};
-  outRangeWrites.forEach(w => {
-    if (!writesByRow[w.row]) writesByRow[w.row] = {};
-    writesByRow[w.row][w.col] = w.value;
-  });
-
-  const rowsToWrite = Object.keys(writesByRow).map(r => parseInt(r,10)).sort((a,b)=>a-b);
-  rowsToWrite.forEach(rowNum => {
-    const cols = Object.keys(writesByRow[rowNum]).map(c => parseInt(c,10));
-    cols.forEach(colNum => {
-      scoresSheet.getRange(rowNum, colNum).setValue(writesByRow[rowNum][colNum]);
-    });
-  });
-
-  SpreadsheetApp.getUi().alert('Stack ranks computed and written into "scores". Columns updated: TargetsMet, ScorePercent, StackRank.');
+function parseNum(v){
+  if(!v) return null;
+  let s=String(v).trim();
+  if(s.includes('%')) return parseFloat(s)/100;
+  let n=parseFloat(s);
+  return isNaN(n)?null:n;
 }
+
+function formatVal(v){
+  if(v==null||v==='')return '--';
+  if(v<=1) return (v*100).toFixed(2)+'%';
+  return v;
+}
+
+function better(val,tgt,param){
+  if(val==null||tgt==null) return null;
+  const lowerBetter=/ttr|ppmd/i.test(param);
+  return lowerBetter ? val<=tgt : val>=tgt;
+}
+
+function computeStackRanks(rows,period){
+  let sameMonth=rows.filter(r=>r.Period==period);
+  sameMonth.forEach(r=>{
+    let met=0,total=0;
+    for(let k in TARGETS){
+      if(r[k]!=null){
+        let val=parseNum(r[k]);
+        let ok=better(val,TARGETS[k],k);
+        if(ok!==null){total++; if(ok)met++;}
+      }
+    }
+    r.MetCount=met; r.TotalCount=total;
+    r.ScorePercent=total? (met/total)*100:0;
+  });
+  sameMonth.sort((a,b)=>{
+    if(b.ScorePercent!=a.ScorePercent)return b.ScorePercent-a.ScorePercent;
+    return (parseNum(b["TOTAL CLOSED VOLUME"])||0)-(parseNum(a["TOTAL CLOSED VOLUME"])||0);
+  });
+  sameMonth.forEach((r,i)=>r.StackRank=i+1);
+  return sameMonth;
+}
+
+function showEngineer(empId,period){
+  const monthRows=computeStackRanks(DATA,period);
+  const row=monthRows.find(r=>String(r["Employee ID"])===empId);
+  if(!row){
+    status.textContent=`No data found for Employee ${empId} in ${period}`;
+    engineerName.textContent='Engineer: —';
+    engineerId.textContent='ID: —';
+    stackRank.textContent='Stack Rank: —';
+    tbody.innerHTML='';
+    return;
+  }
+  engineerName.textContent='Engineer: '+(row["Engineer Name"]||'—');
+  engineerId.textContent='ID: '+(row["Employee ID"]||'—');
+  stackRank.textContent='Stack Rank: '+row.StackRank;
+  status.textContent=`Showing ${period}`;
+  tbody.innerHTML='';
+  Object.keys(TARGETS).forEach(k=>{
+    const val=parseNum(row[k]);
+    const ok=better(val,TARGETS[k],k);
+    const cls= ok==null ? '' : (ok?'good':'bad');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${k}</td><td>${formatVal(TARGETS[k])}</td><td class="${cls}">${formatVal(val)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function init(){
+  const res=await fetch(URL);
+  DATA=await res.json();
+  const periods=[...new Set(DATA.map(r=>r.Period))].filter(Boolean).sort().reverse();
+  monthSelect.innerHTML='';
+  periods.forEach(p=>{
+    const [y,m]=p.split('-');
+    const monthName=new Date(`${y}-${m}-01`).toLocaleString('default',{month:'long'});
+    const opt=document.createElement('option');
+    opt.value=p; opt.textContent=`${monthName} ${y}`;
+    monthSelect.appendChild(opt);
+  });
+  const params=new URLSearchParams(location.search);
+  const emp=params.get('id')||''; if(emp) empInput.value=emp;
+  const per=params.get('period')||periods[0];
+  monthSelect.value=per;
+  if(emp) showEngineer(emp,per);
+}
+applyBtn.onclick=()=>{
+  const emp=empInput.value.trim();
+  const per=monthSelect.value;
+  if(!emp||!per)return alert("Enter Employee ID and select month");
+  const q=new URLSearchParams(); q.set('id',emp); q.set('period',per);
+  location.search=q.toString();
+};
+init();
+})();
+</script>
+</body>
+</html>

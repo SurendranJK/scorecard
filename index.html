@@ -21,7 +21,7 @@
   .stat-card.show{opacity:1;transform:none}
   .stat-label{font-size:13px;color:#6d7c84}
   .stat-value{font-size:22px;font-weight:700;color:var(--hpe-dark);margin-top:8px}
-  .grid{display:grid;grid-template-columns:1fr 420px;gap:14px;margin-top:18px}
+  .grid{display:grid;grid-template-columns:1fr 480px;gap:14px;margin-top:18px}
   .panel{background:var(--panel);padding:14px;border-radius:8px;border:1px solid #eaf5f9}
   .panel h3{margin:0;color:var(--hpe-blue);font-size:16px}
   table{width:100%;border-collapse:collapse;margin-top:10px}
@@ -33,11 +33,16 @@
   .bottom-note{margin-top:12px;color:#66787f;font-size:13px}
   .info { padding:12px; border-radius:8px; background:#fff9e6; border:1px solid #ffdca8; color:#6a4b00; margin-bottom:12px; }
   .error { padding:12px; border-radius:8px; background:#fff1f1; border:1px solid #f2b0b0; color:#8b1a1a; margin-bottom:12px; }
+  .delta-good { color: #0b7a3a; font-weight:700; }
+  .delta-bad { color: #a12b2b; font-weight:700; }
   @media (max-width:980px){.grid{grid-template-columns:1fr}.stat-card{min-width:unset}}
   @media print{.controls, .topbar .actions {display:none} body{background:white}}
   .right-controls {display:flex; align-items:center; gap:8px;}
   .id-input {width:120px}
   .label-inline {font-size:13px;color:#6b7b86;margin-right:6px}
+  .compare-row {display:flex;justify-content:space-between;align-items:center;padding:8px 0}
+  .metric {flex:1}
+  .values {width:220px;text-align:right}
 </style>
 </head>
 <body>
@@ -56,7 +61,7 @@
 
         <div class="right-controls">
           <span class="label-inline">Employee ID</span>
-          <input id="empInput" class="id-input" type="text" placeholder=" " />
+          <input id="empInput" class="id-input" type="text" placeholder="eg 60154741" />
           <button id="apply" class="small">Apply</button>
           <button id="refresh" class="small">Refresh</button>
           <button id="print" class="small">Print</button>
@@ -82,6 +87,12 @@
           </div>
         </div>
 
+        <!-- Comparison panel -->
+        <div class="panel" id="comparePanel" style="margin-top:18px;">
+          <h3>Monthly Targets — Comparison</h3>
+          <div id="compareArea" class="muted" style="margin-top:10px">Loading targets…</div>
+        </div>
+
         <div class="bottom-note">Make sure your Google Sheet is published (File → Publish to the web). Data updates when sheet updates.</div>
       </div>
 
@@ -91,25 +102,25 @@
 
 <script>
 /*
-  Final ScoreCard index.html
-  - Reads OpenSheet JSON from your published sheet (edit OPENSHEET if you change sheet)
-  - Employee ID input + Month dropdown
-  - Friendly "No data found" messages when row is missing
-  - Tolerant header detection and title-row handling
+  ScoreCard with Targets comparison
+  - Keep the OPENSHEET_BASE sheet id the same; we call two tabs: "scores" and "targets"
+  - targets tab must be named exactly "targets" and include Period (YYYY-MM) + metric columns
 */
 
 (async function(){
-  // ---------- CONFIG ----------
-  const OPENSHEET = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
-  const AUTO_REFRESH_MS = 0; // set >0 to auto refresh in ms
+  const SHEET_BASE = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw"; // your sheet id
+  const OPENSHEET_SCORES = `https://opensheet.elk.sh/${SHEET_BASE}/scores`;
+  const OPENSHEET_TARGETS = `https://opensheet.elk.sh/${SHEET_BASE}/targets`;
+  const AUTO_REFRESH_MS = 0;
 
-  // ui refs
+  // DOM refs
   const status = document.getElementById('status');
   const contentArea = document.getElementById('contentArea');
   const debugBox = document.getElementById('debugBox');
   const topStats = document.getElementById('topStats');
   const pmpiArea = document.getElementById('pmpiArea');
   const riderArea = document.getElementById('riderArea');
+  const compareArea = document.getElementById('compareArea');
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
   const btnApply = document.getElementById('apply');
@@ -126,21 +137,16 @@
   if (EMP_ID) empInput.value = EMP_ID;
 
   function showStatus(msg, isError=false){
-    if (isError) {
-      status.innerHTML = `<span class="error">${msg}</span>`;
-    } else {
-      status.innerHTML = `<span class="info">${msg}</span>`;
-    }
+    if (isError) status.innerHTML = `<span class="error">${msg}</span>`;
+    else status.innerHTML = `<span class="info">${msg}</span>`;
   }
 
-  async function fetchSheet(){
-    showStatus('Fetching sheet...');
-    const res = await fetch(OPENSHEET, {cache:'no-store'});
-    if (!res.ok) throw new Error('Failed to fetch sheet: ' + res.status);
-    return res.json();
+  async function fetchJson(url){
+    const r = await fetch(url, {cache:'no-store'});
+    if (!r.ok) throw new Error('Failed to fetch ' + url + ' : ' + r.status);
+    return r.json();
   }
 
-  // normalize rows: if first row is a title, treat second row as headers
   function normalize(rows){
     if (!rows || !rows.length) return [];
     const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
@@ -202,6 +208,29 @@
       if (found) return found;
     }
     return null;
+  }
+
+  function parsePct(v){
+    if (v == null) return null;
+    const s = String(v).trim();
+    if (!s) return null;
+    if (s.includes('%')) return parseFloat(s.replace('%',''))/100;
+    const n = parseFloat(s);
+    if (isNaN(n)) return null;
+    // if value looks like 0.88 treat as fraction
+    if (n <= 1) return n;
+    return n; // numeric (e.g. counts)
+  }
+
+  function formatPct(v){
+    if (v == null) return '--';
+    if (typeof v === 'number') {
+      // if value in 0..1 -> show percent
+      if (v <= 1) return (v*100).toFixed(2) + '%';
+      // else as number
+      return String(v);
+    }
+    return String(v);
   }
 
   function renderTopStats(rec){
@@ -275,24 +304,104 @@
     if (html) riderArea.innerHTML = html;
   }
 
-  // ---------------- load() with friendly messages ----------------
+  // Build comparison view between targetRow and recRow (engineer)
+  function buildComparison(targetRow, recRow){
+    // metrics to compare (order matters)
+    const metrics = [
+      {keyAliases:['Onsite Response Met%','Onsite Response Met%'], label:'Onsite Response Met%'},
+      {keyAliases:['Overall SLA%','Overall SLA%'], label:'Overall SLA%'},
+      {keyAliases:['TOTAL CLOSED VOLUME','TOTAL CLOSED VOLUME'], label:'TOTAL CLOSED VOLUME'},
+      {keyAliases:['TTR Hours(Official)','TTR Hours(Official)','TTR Hours (Official)','TTR Hours_Official'], label:'TTR Hours (Official)'},
+      {keyAliases:['100% DA','100% DA'], label:'100% DA'},
+      {keyAliases:['PPMD','PPMD'], label:'PPMD'},
+      {keyAliases:['PPMC','PPMC'], label:'PPMC'},
+      {keyAliases:['ECASE SLA_HG','ECASE SLA HG','ECASE_SLA_HG'], label:'ECASE SLA HG'}
+    ];
+
+    let html = '';
+    metrics.forEach(m=>{
+      // find target key name from targetRow
+      let tKey = null;
+      for (const a of m.keyAliases){
+        const found = Object.keys(targetRow||{}).find(k=>k.trim().toLowerCase() === a.trim().toLowerCase());
+        if (found) { tKey = found; break; }
+      }
+      // find rec key similarly
+      let rKey = null;
+      for (const a of m.keyAliases){
+        const found = Object.keys(recRow||{}).find(k=>k.trim().toLowerCase() === a.trim().toLowerCase());
+        if (found) { rKey = found; break; }
+      }
+
+      const targetValRaw = tKey ? targetRow[tKey] : '';
+      const recValRaw = rKey ? recRow[rKey] : '';
+
+      // parse percentages if needed
+      const tPct = parsePct(targetValRaw);
+      const rPct = parsePct(recValRaw);
+
+      // compute delta
+      let deltaText = '--';
+      let deltaClass = '';
+      if (tPct != null && rPct != null) {
+        // both numeric; if target is percent or ratio
+        // treat as 'good' if r >= t
+        const diff = rPct - tPct;
+        const diffPct = (diff * 100);
+        deltaText = (diffPct >= 0 ? '+' : '') + diffPct.toFixed(2) + '%';
+        deltaClass = diff >= 0 ? 'delta-good' : 'delta-bad';
+      } else {
+        // non-percent numeric or missing - attempt numeric compare
+        const tNum = parseFloat(String(targetValRaw||'').replace(/[^0-9.\-]/g,''));
+        const rNum = parseFloat(String(recValRaw||'').replace(/[^0-9.\-]/g,''));
+        if (!isNaN(tNum) && !isNaN(rNum)) {
+          const diff = rNum - tNum;
+          deltaText = (diff >= 0 ? '+' : '') + diff.toFixed(2);
+          // decide good/bad — for counts maybe higher is good, for hours lower is good.
+          // Heuristic: if label contains "Hours" or "TTR" then lower is better.
+          if (/hour|ttr/i.test(m.label)) deltaClass = diff <= 0 ? 'delta-good' : 'delta-bad';
+          else deltaClass = diff >= 0 ? 'delta-good' : 'delta-bad';
+        } else {
+          deltaText = '--';
+          deltaClass = '';
+        }
+      }
+
+      const targetText = (tPct != null) ? formatPct(tPct) : (tKey ? String(targetValRaw || '--') : '--');
+      const recText = (rPct != null) ? formatPct(rPct) : (rKey ? String(recValRaw || '--') : '--');
+
+      html += `<div class="compare-row">
+        <div class="metric"><strong>${m.label}</strong></div>
+        <div class="values"><span style="display:inline-block;width:70px;text-align:right">${targetText}</span> → <span style="display:inline-block;width:70px;text-align:right;margin-left:8px">${recText}</span> <span style="margin-left:12px" class="${deltaClass}">${deltaText}</span></div>
+      </div>`;
+    });
+
+    compareArea.innerHTML = html;
+  }
+
+  // main loader
   async function load(){
     try {
-      const r = await fetch(OPENSHEET, {cache:'no-store'});
-      if (!r.ok) throw new Error('Failed to fetch sheet: ' + r.status);
-      const raw = await r.json();
-      const rows = normalize(raw || []);
+      showStatus('Fetching scores & targets...');
+      // fetch both sheets in parallel
+      const [rawScores, rawTargets] = await Promise.all([
+        fetchJson(OPENSHEET_SCORES),
+        fetchJson(OPENSHEET_TARGETS).catch(()=>[])
+      ]);
+
+      const rows = normalize(rawScores || []);
+      const targets = normalize(rawTargets || []);
 
       if (!rows.length) {
-        showStatus('No data in sheet', true);
+        showStatus('No data in sheet (scores)', true);
         contentArea.style.display = 'none';
-        debugBox.style.display = 'none';
         monthSelect.innerHTML = '<option value="">No months</option>';
         return;
       }
 
       showStatus('Sheet loaded — ' + rows.length + ' rows');
 
+      // build periods from scores (same as before)
       const periods = collectPeriods(rows);
       monthSelect.innerHTML = '<option value="">Latest</option>';
       periods.forEach(p => {
@@ -300,37 +409,46 @@
         const formatted = (monthNames[parseInt(m,10)-1] || m) + ' ' + y;
         const o = document.createElement('option'); o.value = p; o.textContent = formatted; monthSelect.appendChild(o);
       });
-
       if (URL_PERIOD) monthSelect.value = URL_PERIOD;
 
-      // prefer typed input, else URL param
+      // prefer typed input else url param
       EMP_ID = (empInput.value || EMP_ID || '').trim();
       if (EMP_ID) empInput.value = EMP_ID;
 
-      let target = URL_PERIOD || (URL_YEAR && URL_MONTH ? `${URL_YEAR}-${String(URL_MONTH).padStart(2,'0')}` : '');
-      if (!target && periods.length) target = periods[0];
+      let targetPeriod = URL_PERIOD || (URL_YEAR && URL_MONTH ? `${URL_YEAR}-${String(URL_MONTH).padStart(2,'0')}` : '');
+      if (!targetPeriod && periods.length) targetPeriod = periods[0];
 
-      const rec = findRecord(rows, EMP_ID, target);
-
+      const rec = findRecord(rows, EMP_ID, targetPeriod);
       if (!rec) {
-        const periodPretty = target ? ((monthNames[parseInt(target.split('-')[1],10)-1] || target.split('-')[1]) + ' ' + target.split('-')[0]) : 'latest';
+        const periodPretty = targetPeriod ? ((monthNames[parseInt(targetPeriod.split('-')[1],10)-1] || targetPeriod.split('-')[1]) + ' ' + targetPeriod.split('-')[0]) : 'latest';
         const empText = EMP_ID ? `Employee ${EMP_ID}` : 'Employee (none)';
-        const msg = `No data found for ${empText} in ${periodPretty}.`;
-        showStatus(msg, true);
+        showStatus(`No data found for ${empText} in ${periodPretty}.`, true);
         contentArea.style.display = 'none';
-        debugBox.style.display = 'none';
         return;
       }
 
-      // render the UI
+      // find target row for this period
+      const tRow = (targets || []).find(r => {
+        const keys = Object.keys(r||{});
+        const periodKey = keys.find(k=>/period/i.test(k));
+        if (!periodKey) return false;
+        return String(r[periodKey]||'').trim() === targetPeriod;
+      });
+
+      // render UI
       contentArea.style.display = 'block';
-      debugBox.style.display = 'none';
       renderTopStats(rec);
       renderPMPI(rec);
       renderRiders(rec);
 
-      const prettyTarget = target ? ((monthNames[parseInt(target.split('-')[1],10)-1] || target.split('-')[1]) + ' ' + target.split('-')[0]) : '';
-      showStatus(`Showing ${EMP_ID}${prettyTarget ? ' — ' + prettyTarget : ''}`, false);
+      if (!tRow) {
+        compareArea.innerHTML = `<div class="muted">No target row found for ${targetPeriod}. Add a row to the "targets" sheet with Period = ${targetPeriod}.</div>`;
+      } else {
+        buildComparison(tRow, rec);
+      }
+
+      const pretty = targetPeriod ? ((monthNames[parseInt(targetPeriod.split('-')[1],10)-1] || targetPeriod.split('-')[1]) + ' ' + targetPeriod.split('-')[0]) : '';
+      showStatus(`Showing ${EMP_ID}${pretty ? ' — ' + pretty : ''}`, false);
 
     } catch (err) {
       showStatus('Error: ' + err.message, true);
@@ -341,20 +459,19 @@
   // initial load
   await load();
 
-  // UI actions
+  // UI events
   btnApply.onclick = () => {
     const chosenMonth = monthSelect.value;
     const typedId = (empInput.value || '').trim();
     const q = new URLSearchParams(window.location.search);
     if (typedId) q.set('id', typedId);
     if (chosenMonth) q.set('period', chosenMonth); else q.delete('period');
-    window.location.search = q.toString(); // reloads page with new params
+    window.location.search = q.toString();
   };
   btnRefresh.onclick = () => load();
   btnPrint.onclick = () => window.print();
 
   if (AUTO_REFRESH_MS > 0) setInterval(load, AUTO_REFRESH_MS);
-
 })();
 </script>
 </body>

@@ -147,31 +147,33 @@
     }
     return rows;
   }
-  function parseNumeric(v){
-    if (v == null || v === '') return null;
-    const s = String(v).trim();
-    if (s === '-') return null;
-    if (s.includes('%')) {
-      const n = parseFloat(s.replace('%','').replace(/,/g,''));
-      return isNaN(n) ? null : n/100;
-    }
-    const n = parseFloat(s.replace(/,/g,''));
-    if (isNaN(n)) return null;
-    if (n > 0 && n <= 1) return n;
-    return n;
+function parseNumeric(v){
+  if (v == null || v === '') return null;
+  const s = String(v).trim();
+  if (s === '-') return null;
+  if (s.includes('%')) {
+    const n = parseFloat(s.replace('%','').replace(/,/g,''));
+    return isNaN(n) ? null : n/100;   // "95%" -> 0.95
   }
+  const n = parseFloat(s.replace(/,/g,'')); 
+  if (isNaN(n)) return null;
+  // DON'T convert the value <= 1 to fraction automatically.
+  // Only values that *explicitly* include '%' are converted above.
+  return n;
+}
   // always two decimals
-  function formatDisplay(val){
-    if (val == null) return '--';
-    if (typeof val === 'number') {
-      if (val <= 1) return (val*100).toFixed(2) + '%';
-      return val.toFixed(2);
-    }
-    const n = parseNumeric(val);
-    if (n == null) return String(val);
-    if (n <= 1) return (n*100).toFixed(2) + '%';
-    return n.toFixed(2);
+function formatDisplay(val){
+  if (val == null) return '--';
+  if (typeof val === 'number') {
+    // treat strictly less-than-1 as fraction (show as percent)
+    if (val < 1) return (val*100).toFixed(2) + '%';
+    return val.toFixed(2);
   }
+  const n = parseNumeric(val);
+  if (n == null) return String(val);
+  if (n < 1) return (n*100).toFixed(2) + '%';
+  return n.toFixed(2);
+}
 
   function findKey(obj, names){
     const keys = Object.keys(obj||{});

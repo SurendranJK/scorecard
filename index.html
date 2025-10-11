@@ -1,155 +1,145 @@
-
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>ScoreCard — Hewlett Packard Enterprise</title>
+<title>HPE ScoreCard — Targets from Sheet (Per-Employee & Monthly)</title>
 <style>
-  :root{--hpe-blue:#00739D;--hpe-dark:#0b3b4a;--muted:#4d5a63;--bg:#f4f7f8;--panel:#ffffff;--panel-weak:#f1f7fb}
-  *{box-sizing:border-box}
-  body{margin:0;font-family:Inter, "Segoe UI", Arial;color:var(--muted);background:var(--bg);-webkit-font-smoothing:antialiased}
-  .container{max-width:1200px;margin:28px auto;padding:18px}
-  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .brand{display:flex;align-items:center;gap:12px}
+  :root{--hpe-blue:#00739D;--muted:#5f6f76;--bg:#f4f7f8}
+  body{font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);margin:0;color:var(--muted)}
+  header{display:flex;justify-content:space-between;align-items:center;padding:18px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.05)}
   .brand .title{font-weight:700;color:var(--hpe-blue);font-size:20px}
-  .brand .subtitle{font-size:13px;color:#2c4b56}
-  .controls{display:flex;gap:8px;align-items:center}
-  .controls select,.controls button,.controls input{padding:8px 10px;border-radius:8px;border:1px solid #d7e6eb;background:white}
-  .main-card{margin-top:16px;background:var(--panel);border-radius:12px;padding:18px;box-shadow:0 8px 28px rgba(10,20,30,0.06)}
-  .top-stats{display:flex;gap:14px;flex-wrap:wrap}
-  .stat-card{flex:1 1 30%;min-width:220px;background:var(--panel-weak);padding:18px;border-radius:8px;border:1px solid #e5f0f5;opacity:0;transform:translateY(8px);transition:all .45s ease}
-  .stat-card.show{opacity:1;transform:none}
-  .stat-label{font-size:13px;color:#6d7c84}
-  .stat-value{font-size:22px;font-weight:700;color:var(--hpe-dark);margin-top:8px}
-  .grid{display:grid;grid-template-columns:1fr 420px;gap:14px;margin-top:18px}
-  .panel{background:var(--panel);padding:14px;border-radius:8px;border:1px solid #eaf5f9}
-  .panel h3{margin:0;color:var(--hpe-blue);font-size:16px}
-  table{width:100%;border-collapse:collapse;margin-top:10px}
-  th,td{padding:8px;border-bottom:1px solid #eef6f9;font-size:13px;text-align:left}
-  thead th{background:var(--hpe-blue);color:white;font-weight:600}
-  .muted{color:#64767d;font-size:13px}
-  .actions{display:flex;gap:10px;align-items:center}
-  .small{font-size:12px;padding:6px 8px}
-  .bottom-note{margin-top:12px;color:#66787f;font-size:13px}
-  .info { padding:12px; border-radius:8px; background:#fff9e6; border:1px solid #ffdca8; color:#6a4b00; margin-bottom:12px; }
-  .error { padding:12px; border-radius:8px; background:#fff1f1; border:1px solid #f2b0b0; color:#8b1a1a; margin-bottom:12px; }
-  @media (max-width:980px){.grid{grid-template-columns:1fr}.stat-card{min-width:unset}}
-  @media print{.controls, .topbar .actions {display:none} body{background:white}}
-  .right-controls {display:flex; align-items:center; gap:8px;}
-  .id-input {width:120px}
-  .label-inline {font-size:13px;color:#6b7b86;margin-right:6px}
+  .controls{display:flex;gap:10px;align-items:center}
+  select,input{padding:8px;border-radius:8px;border:1px solid #dfeff3;background:white}
+  button{padding:8px 10px;border-radius:8px;border:0;background:var(--hpe-blue);color:white;cursor:pointer}
+  main{max-width:1100px;margin:20px auto;padding:0 18px}
+  .card{background:#fff;border-radius:10px;padding:18px;box-shadow:0 10px 30px rgba(10,20,30,0.04)}
+  .top-right{text-align:right}
+  .engineer-name{font-weight:700;color:#0b3b4a}
+  .engineer-id{font-size:13px;color:#6b7b86}
+  .status{margin-top:8px;color:#0b6b5d}
+  table{width:100%;border-collapse:collapse;margin-top:14px}
+  thead th{background:var(--hpe-blue);color:#fff;padding:12px;text-align:left}
+  td,th{padding:12px;border-bottom:1px solid #eef6f9}
+  .col-param{width:55%}
+  .col-target,.col-score{width:22%;text-align:right}
+  .good{color:#0b7a3a;font-weight:700}
+  .bad{color:#a12b2b;font-weight:700}
+  .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
+  @media (max-width:800px){ .controls{flex-wrap:wrap} .col-param{width:60%} }
 </style>
 </head>
 <body>
-  <div class="container">
-    <div class="topbar">
-      <div class="brand">
-        <div>
-          <div class="title">ScoreCard</div>
-          <div class="subtitle">Hewlett Packard Enterprise — Live Performance</div>
-        </div>
-      </div>
-
-      <div class="controls">
-        <div class="muted">Month</div>
-        <select id="monthSelect" title="Select month"></select>
-
-        <div class="right-controls">
-          <span class="label-inline">Employee ID</span>
-          <input id="empInput" class="id-input" type="text" placeholder=" " />
-          <button id="apply" class="small">Apply</button>
-          <button id="refresh" class="small">Refresh</button>
-          <button id="print" class="small">Print</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="main-card">
-      <div id="status" class="muted">Loading data…</div>
-
-      <div id="contentArea" style="display:none">
-        <div class="top-stats" id="topStats"></div>
-
-        <div class="grid">
-          <div class="panel" id="leftPanel">
-            <h3>PMPI Score</h3>
-            <div id="pmpiArea" class="muted" style="margin-top:10px">Loading PMPI…</div>
-          </div>
-
-          <div class="panel" id="rightPanel">
-            <h3>Riders / Parameters</h3>
-            <div id="riderArea" class="muted" style="margin-top:10px">Loading Riders…</div>
-          </div>
-        </div>
-
-        <div class="bottom-note">Make sure your Google Sheet is published (File → Publish to the web). Data updates when sheet updates.</div>
-      </div>
-
-      <div id="debugBox" style="display:none;margin-top:12px;"></div>
-    </div>
+<header>
+  <div class="brand">
+    <div class="title">ScoreCard</div>
+    <div class="subtitle">HPE — Targets from Sheet (Per-employee & Monthly)</div>
   </div>
 
+  <div class="controls">
+    <label>Month</label>
+    <select id="monthSelect"></select>
+    <label>Employee ID</label>
+    <input id="empInput" placeholder="eg 60154741" />
+    <button id="apply">Apply</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div id="status" class="status">Loading...</div>
+      </div>
+      <div class="top-right">
+        <div id="engineerName" class="engineer-name">—</div>
+        <div id="engineerId" class="engineer-id">ID: —</div>
+        <div id="stackRank" class="engineer-id">Stack Rank: —</div>
+      </div>
+    </div>
+
+    <div id="content">
+      <table id="compareTable" aria-label="Parameters comparison">
+        <thead>
+          <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="missingTargets" style="display:none" class="no-data"></div>
+      <div id="missingData" style="display:none" class="no-data"></div>
+    </div>
+  </div>
+</main>
+
 <script>
-/*
-  Final ScoreCard index.html
-  - Reads OpenSheet JSON from your published sheet (edit OPENSHEET if you change sheet)
-  - Employee ID input + Month dropdown
-  - Friendly "No data found" messages when row is missing
-  - Tolerant header detection and title-row handling
-*/
-
 (async function(){
-  // ---------- CONFIG ----------
-  const OPENSHEET = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
-  const AUTO_REFRESH_MS = 0; // set >0 to auto refresh in ms
+  // CONFIG: change SHEET_ID if necessary
+  const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
+  const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
+  const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
 
-  // ui refs
-  const status = document.getElementById('status');
-  const contentArea = document.getElementById('contentArea');
-  const debugBox = document.getElementById('debugBox');
-  const topStats = document.getElementById('topStats');
-  const pmpiArea = document.getElementById('pmpiArea');
-  const riderArea = document.getElementById('riderArea');
+  // PARAMETERS to display and check (order matters)
+  const PARAMETERS = [
+    "Onsite Response Met%",
+    "Overall SLA%",
+    "TOTAL CLOSED VOLUME",
+    "TTR Hours(Official)",
+    "100% DA",
+    "PPMD",
+    "PPMC",
+    "ECASE SLA_M2M",
+    "ECASE SLA_HG"
+  ];
+
+  // FALLBACK TARGETS (only used if targets sheet missing or metric missing)
+  const FALLBACK_TARGETS = {
+    "Onsite Response Met%": 0.90,
+    "Overall SLA%": 0.99,
+    "TTR Hours(Official)": 30,
+    "100% DA": 0.92,
+    "PPMD": 1.13,
+    "ECASE SLA_M2M": 0.97,
+    "ECASE SLA_HG": 0.95
+  };
+
+  // DOM refs
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
-  const btnApply = document.getElementById('apply');
-  const btnRefresh = document.getElementById('refresh');
-  const btnPrint = document.getElementById('print');
+  const applyBtn = document.getElementById('apply');
+  const statusEl = document.getElementById('status');
+  const engineerNameEl = document.getElementById('engineerName');
+  const engineerIdEl = document.getElementById('engineerId');
+  const stackRankEl = document.getElementById('stackRank');
+  const tbody = document.querySelector('#compareTable tbody');
+  const missingTargetsEl = document.getElementById('missingTargets');
+  const missingDataEl = document.getElementById('missingData');
 
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  // URL params
   const params = new URLSearchParams(window.location.search);
   let EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
-  const URL_YEAR = params.get('year');
-  const URL_MONTH = params.get('month');
-
   if (EMP_ID) empInput.value = EMP_ID;
 
-  function showStatus(msg, isError=false){
-    if (isError) {
-      status.innerHTML = `<span class="error">${msg}</span>`;
-    } else {
-      status.innerHTML = `<span class="info">${msg}</span>`;
-    }
+  // Helpers
+  function setStatus(msg, isError=false){
+    statusEl.textContent = msg;
+    statusEl.style.color = isError ? '#8b1a1a' : '#0b6b5d';
   }
-
-  async function fetchSheet(){
-    showStatus('Fetching sheet...');
-    const res = await fetch(OPENSHEET, {cache:'no-store'});
-    if (!res.ok) throw new Error('Failed to fetch sheet: ' + res.status);
-    return res.json();
+  async function fetchJson(url){
+    const r = await fetch(url, {cache:'no-store'});
+    if (!r.ok) throw new Error('Failed to fetch ' + url + ' (' + r.status + ')');
+    return r.json();
   }
-
-  // normalize rows: if first row is a title, treat second row as headers
+  // OpenSheet sometimes returns data with a title-row; normalize to array of objects with proper headers
   function normalize(rows){
     if (!rows || !rows.length) return [];
     const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
     const looksLikeTitle = firstKeys.length === 1 || firstKeys.every(k => /^[\d\W]+$/.test(k) || k.length < 4);
-    if (looksLikeTitle && rows.length > 1){
+    if (looksLikeTitle && rows.length > 1) {
       const headers = Object.values(rows[1]).map(v => String(v||'').trim());
       const dataRows = rows.slice(2);
-      if (headers.every(h => h)){
+      if (headers.every(h => h)) {
         return dataRows.map(r => {
           const vals = Object.values(r);
           const obj = {};
@@ -160,201 +150,283 @@
     }
     return rows;
   }
-
-  function collectPeriods(rows){
-    const ks = Object.keys(rows[0]||{});
-    const periodKey = ks.find(k=>/period/i.test(k));
-    if (periodKey) return [...new Set(rows.map(r=>String(r[periodKey]||'').trim()).filter(Boolean))].sort().reverse();
-    const yearKey = ks.find(k=>/year/i.test(k));
-    const monthKey = ks.find(k=>/month/i.test(k));
-    if (yearKey && monthKey){
-      const set = new Set();
-      rows.forEach(r=>{
-        const y = String(r[yearKey]||'').trim();
-        let m = String(r[monthKey]||'').trim();
-        if (m && m.length===1) m = '0'+m;
-        if (y && m) set.add(`${y}-${m}`);
-      });
-      return [...set].sort().reverse();
+  function parseNumeric(v){
+    if (v == null || v === '') return null;
+    const s = String(v).trim();
+    if (s === '-') return null;
+    if (s.includes('%')) {
+      const n = parseFloat(s.replace('%','').replace(/,/g,''));
+      return isNaN(n) ? null : n/100;
     }
-    return [];
+    const n = parseFloat(s.replace(/,/g,''));
+    if (isNaN(n)) return null;
+    if (n > 0 && n <= 1) return n;
+    return n;
   }
-
-  function detectIdKey(row){
-    return Object.keys(row||{}).find(k=>/emp|id/i.test(k)) || Object.keys(row||{})[0];
-  }
-
-  function findRecord(rows, emp, period){
-    const idKey = detectIdKey(rows[0]||{});
-    const ks = Object.keys(rows[0]||{});
-    const periodKey = ks.find(k=>/period|year/i.test(k));
-    if (period && periodKey) {
-      return rows.find(r => (String(r[idKey]||'').trim() === emp) && (String(r[periodKey]||'').trim() === period));
+  function formatDisplay(val){
+    if (val == null) return '--';
+    if (typeof val === 'number') {
+      if (val <= 1) return (val*100).toFixed(2) + '%';
+      return (Math.round(val) === val) ? String(val) : val.toFixed(2);
     }
-    const matches = rows.filter(r => String(r[idKey]||'').trim() === emp);
-    return matches.length ? matches[0] : null;
+    return String(val);
   }
-
-  function findKey(rec, patterns){
-    const ks = Object.keys(rec||{});
-    for (const p of patterns){
-      const re = new RegExp(p,'i');
-      const found = ks.find(k=>re.test(k));
-      if (found) return found;
+  function findKey(obj, names){
+    const keys = Object.keys(obj||{});
+    for (const n of names) {
+      const match = keys.find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
+      if (match) return match;
+    }
+    for (const n of names) {
+      const re = new RegExp(n.replace(/[%()]/g,'\\$&'),'i');
+      const match = keys.find(k => re.test(k));
+      if (match) return match;
     }
     return null;
   }
+  function lowerIsBetter(metric){
+    return /ttr|hour|ppmd/i.test(metric);
+  }
+  function meetsTarget(metric, scoreVal, targetVal){
+    if (scoreVal == null || targetVal == null) return null;
+    if (lowerIsBetter(metric)) return scoreVal <= targetVal;
+    return scoreVal >= targetVal;
+  }
 
-  function renderTopStats(rec){
-    topStats.innerHTML = '';
-    const rows = [
-      {label:'Engineer Name', val: rec[ findKey(rec,['name','engineer']) ] || rec['Engineer Name'] || ''},
-      {label:'Onsite Response Met%', val: rec[ findKey(rec,['onsite','response']) ] || rec['Onsite Response Met%'] || '--'},
-      {label:'Overall SLA%', val: rec[ findKey(rec,['overall','SLA']) ] || rec['Overall SLA%'] || '--'},
-      {label:'TOTAL CLOSED VOLUME', val: rec[ findKey(rec,['total','volume','closed']) ] || rec['TOTAL CLOSED VOLUME'] || '--'},
-      {label:'TTR Hours (Official)', val: rec[ findKey(rec,['ttr','TTR']) ] || '--'},
-      {label:'100% DA', val: rec[ findKey(rec,['da','100%']) ] || rec['100% DA'] || '--'},
-      {label:'PPMD', val: rec[ findKey(rec,['ppmd']) ] || '--'},
-      {label:'PPMC', val: rec[ findKey(rec,['ppmc']) ] || '--'},
-      {label:'ECASE SLA HG', val: rec[ findKey(rec,['hg','ECASE SLA HG']) ] || rec['ECASE SLA_HG'] || '--'}
-    ];
-    rows.forEach((r,i)=>{
-      const div = document.createElement('div');
-      div.className = 'stat-card';
-      div.innerHTML = `<div class="stat-label">${r.label}</div><div class="stat-value">${r.val}</div>`;
-      topStats.appendChild(div);
-      setTimeout(()=>div.classList.add('show'), 120 * i);
+  // Compute ranks for the given period using effectiveTargets (object keyed by metric)
+  function computeRanks(rowsForPeriod, effectiveTargets){
+    const entries = rowsForPeriod.map(r => {
+      let met = 0, considered = 0;
+      PARAMETERS.forEach(metric => {
+        if (metric === 'TOTAL CLOSED VOLUME') return;
+        const k = findKey(r, [metric]);
+        const scoreRaw = k ? r[k] : null;
+        const scoreNum = parseNumeric(scoreRaw);
+        const tgtRaw = effectiveTargets[metric];
+        const tgtNum = (tgtRaw !== undefined && tgtRaw !== null) ? parseNumeric(tgtRaw) : null;
+        if (tgtNum === null) return;
+        considered++;
+        const ok = meetsTarget(metric, scoreNum, tgtNum);
+        if (ok === true) met++;
+      });
+      const scorePercent = considered ? (met / considered) * 100 : 0;
+      const totalClosedKey = findKey(r, ['TOTAL CLOSED VOLUME','Total Closed Volume','TOTAL CLOSED VOLUME']);
+      const totalClosed = totalClosedKey ? (parseNumeric(r[totalClosedKey]) || 0) : 0;
+      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+      const empIdVal = idKey ? String(r[idKey]||'').trim() : '';
+      return {row: r, empId: empIdVal, met, considered, scorePercent, totalClosed};
     });
+
+    entries.sort((a,b) => {
+      if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
+      return b.totalClosed - a.totalClosed;
+    });
+
+    let prev = null, rank = 0;
+    entries.forEach((e,i) => {
+      if (prev === null || e.scorePercent !== prev) rank = i+1;
+      e.rank = rank;
+      prev = e.scorePercent;
+    });
+    return entries;
   }
 
-  function renderPMPI(rec){
-    pmpiArea.innerHTML = '<div class="muted">No PMPI data</div>';
-    const key = findKey(rec, ['pmpi','p m p i','pm pi','pmpi score']);
-    if (!key) return;
-    let data = [];
-    try { data = JSON.parse(rec[key]); }
-    catch(e){
-      const s = String(rec[key]||'').trim();
-      if (!s) return;
-      data = s.split(/\r?\n/).map(line=>{
-        const parts = line.split('|').map(x=>x.trim());
-        return {param:parts[0], actual:parts[1], score:parts[2]};
-      }).filter(x=>x.param);
-    }
-    if (!data.length) return;
-    let html = '<table><thead><tr><th>Parameters</th><th>Actual</th><th>PMPI Score</th></tr></thead><tbody>';
-    data.forEach(d => html += `<tr><td>${d.param||''}</td><td>${d.actual||''}</td><td>${d.score||''}</td></tr>`);
-    html += '</tbody></table>';
-    pmpiArea.innerHTML = html;
-  }
-
-  function renderRiders(rec){
-    riderArea.innerHTML = '<div class="muted">No Riders/Parameters</div>';
-    const riderKey = findKey(rec, ['rider','riders']);
-    const paramKey = findKey(rec, ['parameter','parameters','param']);
-    let html = '';
-    if (riderKey && rec[riderKey]) {
-      try {
-        const arr = JSON.parse(rec[riderKey]);
-        if (Array.isArray(arr) && arr.length) {
-          html += '<h4 style="margin:0 0 6px 0">Riders</h4><table><thead><tr><th>Parameter</th><th>Actual</th><th>Score</th></tr></thead><tbody>';
-          arr.forEach(a => html += `<tr><td>${a.param||a[0]||''}</td><td>${a.actual||a[1]||''}</td><td>${a.score||a[2]||''}</td></tr>`);
-          html += '</tbody></table>';
-        }
-      } catch(e){}
-    }
-    if (paramKey && rec[paramKey]) {
-      try {
-        const parr = JSON.parse(rec[paramKey]);
-        if (Array.isArray(parr) && parr.length) {
-          html += '<h4 style="margin:12px 0 6px 0">Parameters</h4><table><thead><tr><th>Parameter</th><th>Score</th></tr></thead><tbody>';
-          parr.forEach(p => html += `<tr><td>${p.param||p[0]||''}</td><td>${p.score||p[1]||''}</td></tr>`);
-          html += '</tbody></table>';
-        }
-      } catch(e){}
-    }
-    if (html) riderArea.innerHTML = html;
-  }
-
-  // ---------------- load() with friendly messages ----------------
-  async function load(){
+  async function loadAll(){
+    setStatus('Loading scores & targets...');
+    missingTargetsEl.style.display = 'none';
+    missingDataEl.style.display = 'none';
     try {
-      const r = await fetch(OPENSHEET, {cache:'no-store'});
-      if (!r.ok) throw new Error('Failed to fetch sheet: ' + r.status);
-      const raw = await r.json();
-      const rows = normalize(raw || []);
-
-      if (!rows.length) {
-        showStatus('No data in sheet', true);
-        contentArea.style.display = 'none';
-        debugBox.style.display = 'none';
-        monthSelect.innerHTML = '<option value="">No months</option>';
-        return;
+      const [rawScores, rawTargets] = await Promise.all([
+        fetchJson(URL_SCORES).catch(()=>[]),
+        fetchJson(URL_TARGETS).catch(()=>[])
+      ]);
+      const scores = normalize(rawScores || []);
+      const targets = normalize(rawTargets || []);
+      if (!scores.length) {
+        setStatus('No data found in scores sheet', true);
+        missingDataEl.style.display = 'block';
+        missingDataEl.innerHTML = '<div class="no-data">No rows in scores sheet. Ensure the tab is named <strong>scores</strong> and published.</div>';
+        return {scores:[], targets:[]};
       }
+      setStatus(`Loaded ${scores.length} score rows`);
+      return {scores, targets};
+    } catch (err) {
+      setStatus('Error loading sheets: ' + err.message, true);
+      throw err;
+    }
+  }
 
-      showStatus('Sheet loaded — ' + rows.length + ' rows');
+  async function showForEmployee(allScores, allTargets, empId, period){
+    setStatus('Preparing view...');
+    tbody.innerHTML = '';
+    missingTargetsEl.style.display = 'none';
+    missingDataEl.style.display = 'none';
+    engineerNameEl.textContent = '—';
+    engineerIdEl.textContent = 'ID: —';
+    stackRankEl.textContent = 'Stack Rank: —';
 
-      const periods = collectPeriods(rows);
-      monthSelect.innerHTML = '<option value="">Latest</option>';
+    // filter rows for the chosen period
+    const rowsForPeriod = allScores.filter(r => {
+      const pkey = findKey(r, ['Period','period']);
+      return pkey && String(r[pkey]||'').trim() === String(period).trim();
+    });
+
+    // find the engineer row
+    const empRow = rowsForPeriod.find(r => {
+      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+      return idKey && String(r[idKey]||'').trim() === String(empId).trim();
+    });
+
+    if (!empRow) {
+      setStatus(`No data found for Employee ${empId} in ${period}`, true);
+      missingDataEl.style.display = 'block';
+      missingDataEl.innerHTML = `<div class="no-data">No row found for employee <strong>${empId}</strong> in <strong>${period}</strong>.</div>`;
+      return;
+    }
+
+    // try to find a target row for this period that matches Employee ID (per-engineer target)
+    let targetRowForPeriodAndEmp = null;
+    if (allTargets && allTargets.length) {
+      targetRowForPeriodAndEmp = allTargets.find(r => {
+        const pKey = findKey(r, ['Period','period']);
+        if (!pKey) return false;
+        const pVal = String(r[pKey]||'').trim();
+        if (pVal !== String(period).trim()) return false;
+        // check emp id match if present in targets row
+        const tEmpKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+        if (tEmpKey) {
+          return String(r[tEmpKey]||'').trim() === String(empId).trim();
+        }
+        return false;
+      });
+    }
+
+    // find a period-level target row
+    let targetRowForPeriod = null;
+    if (allTargets && allTargets.length) {
+      targetRowForPeriod = allTargets.find(r => {
+        const pKey = findKey(r, ['Period','period']);
+        return pKey && String(r[pKey]||'').trim() === String(period).trim();
+      });
+    }
+
+    // build effectiveTargets: prefer per-employee row, else period row, else fallback defaults
+    const effectiveTargets = {};
+    PARAMETERS.forEach(metric => {
+      if (targetRowForPeriodAndEmp) {
+        const k = findKey(targetRowForPeriodAndEmp, [metric, metric.replace(/ /g,''), metric.replace(/_/g,' ')]);
+        if (k) { effectiveTargets[metric] = targetRowForPeriodAndEmp[k]; return; }
+      }
+      if (targetRowForPeriod) {
+        const k = findKey(targetRowForPeriod, [metric, metric.replace(/ /g,''), metric.replace(/_/g,' ')]);
+        if (k) { effectiveTargets[metric] = targetRowForPeriod[k]; return; }
+      }
+      if (FALLBACK_TARGETS[metric] !== undefined) effectiveTargets[metric] = FALLBACK_TARGETS[metric];
+      else effectiveTargets[metric] = null;
+    });
+
+    if (!allTargets.length) {
+      missingTargetsEl.style.display = 'block';
+      missingTargetsEl.innerHTML = `<div class="no-data">No <strong>targets</strong> sheet found or it's empty — using fallback targets where available. To manage targets per-month or per-engineer, add a 'targets' tab with Period column and optional Employee ID.</div>`;
+    } else if (!targetRowForPeriod && !targetRowForPeriodAndEmp) {
+      missingTargetsEl.style.display = 'block';
+      missingTargetsEl.innerHTML = `<div class="no-data">No target row found for <strong>${period}</strong> in the targets sheet; using fallback targets where metrics are missing.</div>`;
+    } else if (targetRowForPeriodAndEmp) {
+      missingTargetsEl.style.display = 'none';
+    }
+
+    // compute ranking entries for the period to get stack rank
+    const rankingEntries = computeRanks(rowsForPeriod, effectiveTargets);
+    const myEntry = rankingEntries.find(e => String(e.empId) === String(empId));
+    if (myEntry) stackRankEl.textContent = 'Stack Rank: ' + myEntry.rank;
+    else stackRankEl.textContent = 'Stack Rank: —';
+
+    // header details
+    const nameKey = findKey(empRow, ['Engineer Name','Name','Engineer']);
+    const idKey = findKey(empRow, ['Employee ID','EmpID','EmployeeID','ID']);
+    engineerNameEl.textContent = nameKey ? (empRow[nameKey] || '—') : '—';
+    engineerIdEl.textContent = 'ID: ' + (idKey ? (empRow[idKey] || '—') : empId);
+
+    // populate table rows with coloring
+    tbody.innerHTML = '';
+    PARAMETERS.forEach(metric => {
+      const targetRaw = effectiveTargets[metric];
+      const targetNum = targetRaw != null ? parseNumeric(targetRaw) : null;
+      const scoreKey = findKey(empRow, [metric, metric.replace(/ /g,''), metric.replace(/_/g,' ')]);
+      const scoreRaw = scoreKey ? empRow[scoreKey] : null;
+      const scoreNum = parseNumeric(scoreRaw);
+      const met = (targetNum != null && scoreNum != null) ? meetsTarget(metric, scoreNum, targetNum) : null;
+      const scoreClass = met === null ? '' : (met ? 'good' : 'bad');
+      const targetDisplay = targetNum != null ? formatDisplay(targetNum) : '--';
+      const scoreDisplay = scoreNum != null ? formatDisplay(scoreNum) : (scoreRaw ? String(scoreRaw) : '--');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="col-param">${metric}</td>
+                      <td class="col-target">${targetDisplay}</td>
+                      <td class="col-score"><span class="${scoreClass}">${scoreDisplay}</span></td>`;
+      tbody.appendChild(tr);
+    });
+
+    setStatus(`Showing ${engineerNameEl.textContent} — ${period}`);
+  }
+
+  async function boot(){
+    try {
+      const {scores, targets} = await (async ()=>{
+        try {
+          const [s,t] = await Promise.all([fetchJson(URL_SCORES), fetchJson(URL_TARGETS)]);
+          return {scores: normalize(s||[]), targets: normalize(t||[])};
+        } catch(e) {
+          // if targets fetch fails, still try scores
+          const s = await fetchJson(URL_SCORES);
+          return {scores: normalize(s||[]), targets: []};
+        }
+      })();
+
+      // populate months from scores
+      const periodSet = new Set();
+      scores.forEach(r => {
+        const pk = findKey(r, ['Period','period']);
+        if (pk) { const v = String(r[pk]||'').trim(); if (v) periodSet.add(v); }
+      });
+      const periods = Array.from(periodSet).sort().reverse();
+      monthSelect.innerHTML = '';
+      monthSelect.appendChild(new Option('Latest',''));
       periods.forEach(p => {
         const [y,m] = p.split('-');
-        const formatted = (monthNames[parseInt(m,10)-1] || m) + ' ' + y;
-        const o = document.createElement('option'); o.value = p; o.textContent = formatted; monthSelect.appendChild(o);
+        let label = p;
+        if (y && m && m.length) {
+          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'long'}) + ' ' + y; } catch(e) {}
+        }
+        monthSelect.appendChild(new Option(label,p));
       });
 
       if (URL_PERIOD) monthSelect.value = URL_PERIOD;
+      if (!monthSelect.value && periods.length) monthSelect.value = periods[0];
 
-      // prefer typed input, else URL param
-      EMP_ID = (empInput.value || EMP_ID || '').trim();
-      if (EMP_ID) empInput.value = EMP_ID;
+      applyBtn.onclick = () => {
+        const emp = empInput.value.trim();
+        const per = monthSelect.value;
+        if (!emp) return alert('Enter Employee ID');
+        if (!per) return alert('Select Month');
+        const q = new URLSearchParams();
+        q.set('id', emp); q.set('period', per);
+        location.search = q.toString();
+      };
 
-      let target = URL_PERIOD || (URL_YEAR && URL_MONTH ? `${URL_YEAR}-${String(URL_MONTH).padStart(2,'0')}` : '');
-      if (!target && periods.length) target = periods[0];
-
-      const rec = findRecord(rows, EMP_ID, target);
-
-      if (!rec) {
-        const periodPretty = target ? ((monthNames[parseInt(target.split('-')[1],10)-1] || target.split('-')[1]) + ' ' + target.split('-')[0]) : 'latest';
-        const empText = EMP_ID ? `Employee ${EMP_ID}` : 'Employee (none)';
-        const msg = `No data found for ${empText} in ${periodPretty}.`;
-        showStatus(msg, true);
-        contentArea.style.display = 'none';
-        debugBox.style.display = 'none';
-        return;
+      if (empInput.value.trim()) {
+        await showForEmployee(scores, targets, empInput.value.trim(), monthSelect.value);
+      } else {
+        setStatus('Select month and enter Employee ID to view data.');
       }
 
-      // render the UI
-      contentArea.style.display = 'block';
-      debugBox.style.display = 'none';
-      renderTopStats(rec);
-      renderPMPI(rec);
-      renderRiders(rec);
-
-      const prettyTarget = target ? ((monthNames[parseInt(target.split('-')[1],10)-1] || target.split('-')[1]) + ' ' + target.split('-')[0]) : '';
-      showStatus(`Showing ${EMP_ID}${prettyTarget ? ' — ' + prettyTarget : ''}`, false);
-
     } catch (err) {
-      showStatus('Error: ' + err.message, true);
+      setStatus('Error: ' + err.message, true);
       console.error(err);
     }
   }
 
-  // initial load
-  await load();
-
-  // UI actions
-  btnApply.onclick = () => {
-    const chosenMonth = monthSelect.value;
-    const typedId = (empInput.value || '').trim();
-    const q = new URLSearchParams(window.location.search);
-    if (typedId) q.set('id', typedId);
-    if (chosenMonth) q.set('period', chosenMonth); else q.delete('period');
-    window.location.search = q.toString(); // reloads page with new params
-  };
-  btnRefresh.onclick = () => load();
-  btnPrint.onclick = () => window.print();
-
-  if (AUTO_REFRESH_MS > 0) setInterval(load, AUTO_REFRESH_MS);
+  // start
+  await boot();
 
 })();
 </script>

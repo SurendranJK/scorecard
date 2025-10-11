@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>HPE ScoreCard — Targets from Sheet (Avg Volume, 2 decimals)</title>
+<title>HPE ScoreCard — All Metrics Included</title>
 <style>
   :root{--hpe-blue:#00739D;--muted:#5f6f76;--bg:#f4f7f8}
   body{font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);margin:0;color:var(--muted)}
@@ -34,7 +34,7 @@
 <header>
   <div class="brand">
     <div class="title">ScoreCard</div>
-    <div class="subtitle">HPE — Targets from Sheet (Per-employee & Monthly)</div>
+    <div class="subtitle">HPE — All metrics included for Stack Rank</div>
   </div>
 
   <div class="controls">
@@ -75,11 +75,11 @@
 
 <script>
 (async function(){
-  // CONFIG: update SHEET_ID if needed
   const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
 
+  // metrics you listed (now TOTAL CLOSED VOLUME included in metrics considered)
   const PARAMETERS = [
     "Onsite Response Met%",
     "Overall SLA%",
@@ -92,6 +92,7 @@
     "ECASE SLA_HG"
   ];
 
+  // fallback targets for non-TOTAL metrics
   const FALLBACK_TARGETS = {
     "Onsite Response Met%": 0.90,
     "Overall SLA%": 0.99,
@@ -102,7 +103,6 @@
     "ECASE SLA_HG": 0.95
   };
 
-  // DOM
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
   const applyBtn = document.getElementById('apply');
@@ -119,7 +119,6 @@
   const URL_PERIOD = (params.get('period') || '').trim();
   if (EMP_ID) empInput.value = EMP_ID;
 
-  // helpers
   function setStatus(msg, isError=false){
     statusEl.textContent = msg;
     statusEl.style.color = isError ? '#8b1a1a' : '#0b6b5d';
@@ -129,6 +128,7 @@
     if (!r.ok) throw new Error('Failed to fetch ' + url + ' (' + r.status + ')');
     return r.json();
   }
+
   function normalize(rows){
     if (!rows || !rows.length) return [];
     const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
@@ -160,42 +160,43 @@
     if (n > 0 && n <= 1) return n;
     return n;
   }
-  // format: always two decimals for numbers (percent -> 2 decimals after %; counts -> 2 decimals)
+  // always two decimals
   function formatDisplay(val){
     if (val == null) return '--';
     if (typeof val === 'number') {
       if (val <= 1) return (val*100).toFixed(2) + '%';
       return val.toFixed(2);
     }
-    // attempt to parse as number before formatting
     const n = parseNumeric(val);
     if (n == null) return String(val);
     if (n <= 1) return (n*100).toFixed(2) + '%';
     return n.toFixed(2);
   }
+
   function findKey(obj, names){
     const keys = Object.keys(obj||{});
-    for (const n of names) {
-      const match = keys.find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
-      if (match) return match;
+    for (const n of names){
+      const exact = keys.find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
+      if (exact) return exact;
     }
-    for (const n of names) {
+    for (const n of names){
       const re = new RegExp(n.replace(/[%()]/g,'\\$&'),'i');
-      const match = keys.find(k => re.test(k));
-      if (match) return match;
+      const found = keys.find(k => re.test(k));
+      if (found) return found;
     }
     return null;
   }
+
   function lowerIsBetter(metric){
-    return /ttr|hour|ppmd/i.test(metric);
-  }
-  function meetsTarget(metric, scoreVal, targetVal){
-    if (scoreVal == null || targetVal == null) return null;
-    if (lowerIsBetter(metric)) return scoreVal <= targetVal;
-    return scoreVal >= targetVal;
+    return /ttr|ppmd/i.test(metric);
   }
 
-  // average total closed volume for the period
+  function meetsTarget(metric, scoreVal, targetVal){
+    if (scoreVal == null || targetVal == null) return null;
+    return lowerIsBetter(metric) ? (scoreVal <= targetVal) : (scoreVal >= targetVal);
+  }
+
+  // average total closed volume for period
   function computeAverageTotalClosed(rowsForPeriod) {
     const key = rowsForPeriod.length ? findKey(rowsForPeriod[0], ['TOTAL CLOSED VOLUME','Total Closed Volume','TotalClosedVolume']) : null;
     if (!key) return null;
@@ -207,17 +208,17 @@
     return count ? (sum / count) : null;
   }
 
+  // compute ranks now counting TOTAL CLOSED VOLUME as a metric
   function computeRanks(rowsForPeriod, effectiveTargets){
     const entries = rowsForPeriod.map(r => {
       let met = 0, considered = 0;
       PARAMETERS.forEach(metric => {
-        if (metric === 'TOTAL CLOSED VOLUME') return;
         const k = findKey(r, [metric]);
         const scoreRaw = k ? r[k] : null;
         const scoreNum = parseNumeric(scoreRaw);
         const tgtRaw = effectiveTargets[metric];
         const tgtNum = (tgtRaw !== undefined && tgtRaw !== null) ? parseNumeric(tgtRaw) : null;
-        if (tgtNum === null) return;
+        if (tgtNum === null) return; // skip metric if no target available
         considered++;
         const ok = meetsTarget(metric, scoreNum, tgtNum);
         if (ok === true) met++;
@@ -230,11 +231,13 @@
       return {row: r, empId: empIdVal, met, considered, scorePercent, totalClosed};
     });
 
+    // sort by score percent then total closed volume desc
     entries.sort((a,b) => {
       if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
       return b.totalClosed - a.totalClosed;
     });
 
+    // assign ranks (ties get same rank, next index is i+1 - ordinal-with-ties)
     let prev = null, rank = 0;
     entries.forEach((e,i) => {
       if (prev === null || e.scorePercent !== prev) rank = i+1;
@@ -304,9 +307,7 @@
         const pVal = String(r[pKey]||'').trim();
         if (pVal !== String(period).trim()) return false;
         const tEmpKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
-        if (tEmpKey) {
-          return String(r[tEmpKey]||'').trim() === String(empId).trim();
-        }
+        if (tEmpKey) return String(r[tEmpKey]||'').trim() === String(empId).trim();
         return false;
       });
     }
@@ -320,12 +321,12 @@
       });
     }
 
-    // compute average TOTAL CLOSED VOLUME for period
-    const avgTotalClosed = computeAverageTotalClosed(rowsForPeriod); // number or null
+    // compute avg total closed if target for it not present
+    const avgTotalClosed = computeAverageTotalClosed(rowsForPeriod);
 
+    // build effective targets (precedence: per-emp -> period -> explicit total avg -> fallback)
     const effectiveTargets = {};
     PARAMETERS.forEach(metric => {
-      // precedence: per-employee -> period -> fallback -> computed avg for TOTAL CLOSED VOLUME
       if (targetRowForPeriodAndEmp) {
         const k = findKey(targetRowForPeriodAndEmp, [metric, metric.replace(/ /g,''), metric.replace(/_/g,' ')]);
         if (k) { effectiveTargets[metric] = targetRowForPeriodAndEmp[k]; return; }
@@ -350,7 +351,7 @@
       missingTargetsEl.innerHTML = `<div class="no-data">No target row found for <strong>${period}</strong> in the targets sheet; using fallback targets and computed average for TOTAL CLOSED VOLUME where available.</div>`;
     }
 
-    // compute ranks for period
+    // compute ranks (TOTAL CLOSED VOLUME is now part of considered metrics)
     const rankingEntries = computeRanks(rowsForPeriod, effectiveTargets);
     const myEntry = rankingEntries.find(e => String(e.empId) === String(empId));
     if (myEntry) stackRankEl.textContent = 'Stack Rank: ' + myEntry.rank;
@@ -370,12 +371,11 @@
       const scoreKey = findKey(empRow, [metric, metric.replace(/ /g,''), metric.replace(/_/g,' ')]);
       const scoreRaw = scoreKey ? empRow[scoreKey] : null;
       const scoreNum = parseNumeric(scoreRaw);
-
       const met = (targetNum != null && scoreNum != null) ? meetsTarget(metric, scoreNum, targetNum) : null;
       const scoreClass = met === null ? '' : (met ? 'good' : 'bad');
 
-      const targetDisplay = (metric === 'TOTAL CLOSED VOLUME' && targetNum != null) ? formatDisplay(targetNum) : (targetNum != null ? formatDisplay(targetNum) : '--');
-      const scoreDisplay = scoreNum != null ? (metric === 'TOTAL CLOSED VOLUME' ? formatDisplay(scoreNum) : formatDisplay(scoreNum)) : (scoreRaw ? String(scoreRaw) : '--');
+      const targetDisplay = (targetNum != null) ? formatDisplay(targetNum) : '--';
+      const scoreDisplay = (scoreNum != null) ? formatDisplay(scoreNum) : (scoreRaw ? String(scoreRaw) : '--');
 
       const tr = document.createElement('tr');
       tr.innerHTML = `<td class="col-param">${metric}</td>
@@ -384,7 +384,7 @@
       tbody.appendChild(tr);
     });
 
-    // avg note with 2 decimal places if avg used
+    // average note if avg used for TOTAL CLOSED VOLUME
     const prevNote = document.querySelector('.avg-note');
     if (prevNote) prevNote.remove();
     if (avgTotalClosed != null) {
@@ -445,7 +445,6 @@
       } else {
         setStatus('Select month and enter Employee ID to view data.');
       }
-
     } catch (err) {
       setStatus('Error: ' + err.message, true);
       console.error(err);
@@ -453,7 +452,6 @@
   }
 
   await boot();
-
 })();
 </script>
 </body>

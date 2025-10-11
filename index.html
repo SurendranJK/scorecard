@@ -5,18 +5,61 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>My Scorecard</title>
   <style>
-    :root{--accent:#00739D;--muted:#425563}
-    body{font-family:Segoe UI,Roboto,Arial;background:#f3f6f8;margin:0;padding:24px;color:var(--muted)}
-    .wrap{max-width:920px;margin:24px auto;background:#fff;padding:20px;border-radius:10px;box-shadow:0 6px 20px rgba(10,20,30,0.06)}
-    header{display:flex;justify-content:space-between;align-items:center}
-    header h1{color:var(--accent);margin:0;font-size:20px}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
-    .card{background:#fafbfd;padding:16px;border-radius:8px;border:1px solid #eef3f6}
-    .label{font-size:13px;color:#6b7b86}
-    .value{font-weight:700;font-size:20px;color:#243b4a;margin-top:6px}
-    .wide{grid-column:span 3}
-    .muted{color:#6b7b86}
-    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+    :root {
+      --accent:#00739D;
+      --muted:#425563;
+    }
+    body {
+      font-family: "Segoe UI", Roboto, Arial;
+      background:#f3f6f8;
+      margin:0;
+      padding:24px;
+      color:var(--muted);
+    }
+    .wrap {
+      max-width:900px;
+      margin:24px auto;
+      background:#fff;
+      padding:24px;
+      border-radius:10px;
+      box-shadow:0 6px 20px rgba(0,0,0,0.08);
+    }
+    header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    header h1 {
+      color:var(--accent);
+      margin:0;
+      font-size:22px;
+    }
+    .grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+      gap:14px;
+      margin-top:20px;
+    }
+    .card {
+      background:#fafbfd;
+      padding:16px;
+      border-radius:8px;
+      border:1px solid #eef3f6;
+    }
+    .label {
+      font-size:13px;
+      color:#6b7b86;
+    }
+    .value {
+      font-weight:700;
+      font-size:20px;
+      color:#243b4a;
+      margin-top:6px;
+    }
+    .muted {
+      color:#6b7b86;
+      font-size:13px;
+    }
   </style>
 </head>
 <body>
@@ -26,21 +69,20 @@
       <div class="muted">Open with <code>?id=60154741</code></div>
     </header>
 
-    <div id="content" style="margin-top:16px">Loading…</div>
+    <div id="content" style="margin-top:16px;">Loading…</div>
 
-    <div style="margin-top:14px;color:#6b7b86;font-size:13px">
+    <div style="margin-top:14px;" class="muted">
       Make sure your sheet is published (File → Publish to the web). If nothing shows, refresh after 15s.
     </div>
   </div>
 
 <script>
 (async function(){
-  // <-- YOUR working OpenSheet URL (already filled)
-  const sheetJson = "https://opensheet.elk.sh/1H7pPn9knLcaGZ8inmykqAmZMqCNnCtX2aV5uBn7m84M/scores";
+  // ✅ Your real OpenSheet JSON URL
+  const sheetJson = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
 
   const params = new URLSearchParams(window.location.search);
   const empId = (params.get('id') || '').trim();
-
   const content = document.getElementById('content');
 
   try {
@@ -48,15 +90,15 @@
     if (!res.ok) throw new Error('Fetch failed: ' + res.status);
     const rows = await res.json();
 
-    // show helpful preview if no id provided
     if (!empId) {
       content.innerHTML = `<div class="muted">No ?id= provided. Example: <code>?id=60154741</code></div>
-        <div style="margin-top:12px" class="muted">Preview (first row): <pre style="white-space:pre-wrap">${JSON.stringify(rows[0]||{},null,2)}</pre></div>`;
+        <div style="margin-top:12px" class="muted">
+        Preview (first row): <pre style="white-space:pre-wrap">${JSON.stringify(rows[0]||{},null,2)}</pre></div>`;
       return;
     }
 
-    // detect Emp ID column (tolerant)
-    const idKey = Object.keys(rows[0]||{}).find(k=>/emp/i.test(k)) || Object.keys(rows[0]||{})[1];
+    // Detect Employee ID header
+    const idKey = Object.keys(rows[0]||{}).find(k=>/emp/i.test(k)) || Object.keys(rows[0]||{})[0];
 
     const record = rows.find(r => {
       const val = r[idKey] ?? r['Employee ID'] ?? r['EmpID'] ?? r['empid'] ?? r['ID'];
@@ -64,11 +106,14 @@
     });
 
     if (!record) {
-      content.innerHTML = `<div style="padding:12px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;border-radius:6px">Employee <b>${empId}</b> not found. Detected ID header: <code>${idKey}</code>. Preview first row keys: <pre style="white-space:pre-wrap">${Object.keys(rows[0]||{}).join(', ')}</pre></div>`;
+      content.innerHTML = `<div style="padding:12px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;border-radius:6px">
+        Employee <b>${empId}</b> not found. Check the Employee ID column name or spaces in the sheet.<br>
+        Detected header: <code>${idKey}</code><br>
+        Preview first row keys: <pre style="white-space:pre-wrap">${Object.keys(rows[0]||{}).join(', ')}</pre></div>`;
       return;
     }
 
-    // find keys (flexible)
+    // Find key names automatically
     const findKey = (patterns) => {
       const ks = Object.keys(record);
       for (const p of patterns) {
@@ -80,64 +125,32 @@
     };
 
     const nameKey = findKey(['name','engineer']);
-    const onsiteKey = findKey(['onsite','Onsite Response']);
-    const overallKey = findKey(['overall','Overall SLA']);
-    const totalClosedKey = findKey(['total','TOTAL CLOSED','TotalClosed']);
-    const ttrKey = findKey(['ttr','TTR']);
-    const daKey = findKey(['100% DA','DA','DA_100']);
+    const onsiteKey = findKey(['onsite','Response']);
+    const overallKey = findKey(['overall','SLA']);
+    const totalKey = findKey(['total','VOLUME']);
+    const ttrKey = findKey(['ttr']);
+    const daKey = findKey(['DA']);
     const ppmdKey = findKey(['PPMD']);
     const ppmcKey = findKey(['PPMC']);
-    const ecaseM2MKey = findKey(['ECASE\\s*SLA\\s*M2M','M2M']);
-    const ecaseHGKey = findKey(['ECASE\\s*SLA\\s*HG','HG']);
+    const m2mKey = findKey(['M2M']);
+    const hgKey = findKey(['HG']);
 
-    // render UI
+    // ✅ Render your data
     content.innerHTML = `
       <div class="grid">
-        <div class="card">
-          <div class="label">Engineer Name</div>
-          <div class="value">${record[nameKey] || record['Engineer Name'] || '--'}</div>
-        </div>
-        <div class="card">
-          <div class="label">Onsite Response Met%</div>
-          <div class="value">${record[onsiteKey] || '--'}</div>
-        </div>
-        <div class="card">
-          <div class="label">Overall SLA%</div>
-          <div class="value">${record[overallKey] || '--'}</div>
-        </div>
-
-        <div class="card">
-          <div class="label">TOTAL CLOSED VOLUME</div>
-          <div class="value">${record[totalClosedKey] || '--'}</div>
-        </div>
-        <div class="card">
-          <div class="label">TTR Hours (Official)</div>
-          <div class="value">${record[ttrKey] || '--'}</div>
-        </div>
-        <div class="card">
-          <div class="label">100% DA</div>
-          <div class="value">${record[daKey] || '--'}</div>
-        </div>
-
-        <div class="card">
-          <div class="label">PPMD</div>
-          <div class="value">${record[ppmdKey] || '--'}</div>
-        </div>
-        <div class="card">
-          <div class="label">PPMC</div>
-          <div class="value">${record[ppmcKey] || '--'}</div>
-        </div>
-
-        <div class="card">
-          <div class="label">ECASE SLA M2M</div>
-          <div class="value">${record[ecaseM2MKey] || '--'}</div>
-        </div>
-        <div class="card">
-          <div class="label">ECASE SLA HG</div>
-          <div class="value">${record[ecaseHGKey] || '--'}</div>
-        </div>
+        <div class="card"><div class="label">Engineer Name</div><div class="value">${record[nameKey] || '--'}</div></div>
+        <div class="card"><div class="label">Onsite Response Met%</div><div class="value">${record[onsiteKey] || '--'}</div></div>
+        <div class="card"><div class="label">Overall SLA%</div><div class="value">${record[overallKey] || '--'}</div></div>
+        <div class="card"><div class="label">TOTAL CLOSED VOLUME</div><div class="value">${record[totalKey] || '--'}</div></div>
+        <div class="card"><div class="label">TTR Hours (Official)</div><div class="value">${record[ttrKey] || '--'}</div></div>
+        <div class="card"><div class="label">100% DA</div><div class="value">${record[daKey] || '--'}</div></div>
+        <div class="card"><div class="label">PPMD</div><div class="value">${record[ppmdKey] || '--'}</div></div>
+        <div class="card"><div class="label">PPMC</div><div class="value">${record[ppmcKey] || '--'}</div></div>
+        <div class="card"><div class="label">ECASE SLA M2M</div><div class="value">${record[m2mKey] || '--'}</div></div>
+        <div class="card"><div class="label">ECASE SLA HG</div><div class="value">${record[hgKey] || '--'}</div></div>
       </div>
     `;
+
   } catch (err) {
     content.innerHTML = `<div style="color:#8b1a1a">Error loading sheet: ${err.message}</div>`;
     console.error(err);

@@ -1,159 +1,348 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>My Scorecard</title>
-  <style>
-    :root {
-      --accent:#00739D;
-      --muted:#425563;
-    }
-    body {
-      font-family: "Segoe UI", Roboto, Arial;
-      background:#f3f6f8;
-      margin:0;
-      padding:24px;
-      color:var(--muted);
-    }
-    .wrap {
-      max-width:900px;
-      margin:24px auto;
-      background:#fff;
-      padding:24px;
-      border-radius:10px;
-      box-shadow:0 6px 20px rgba(0,0,0,0.08);
-    }
-    header {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-    }
-    header h1 {
-      color:var(--accent);
-      margin:0;
-      font-size:22px;
-    }
-    .grid {
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-      gap:14px;
-      margin-top:20px;
-    }
-    .card {
-      background:#fafbfd;
-      padding:16px;
-      border-radius:8px;
-      border:1px solid #eef3f6;
-    }
-    .label {
-      font-size:13px;
-      color:#6b7b86;
-    }
-    .value {
-      font-weight:700;
-      font-size:20px;
-      color:#243b4a;
-      margin-top:6px;
-    }
-    .muted {
-      color:#6b7b86;
-      font-size:13px;
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ScoreCard — Live</title>
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<style>
+  /* ---------- Theme & layout ---------- */
+  :root{
+    --bg:#f4f6f8; --card:#ffffff; --accent:#00739D; --muted:#425563; --panel:#eef6fa;
+  }
+  body{font-family:Inter, "Segoe UI", Arial; margin:0; background:var(--bg); color:var(--muted);}
+  .container{max-width:1100px;margin:28px auto;padding:18px;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  h1{color:var(--accent);font-size:20px;margin:0}
+  .controls{display:flex;gap:8px;align-items:center}
+  .controls select, .controls button, .controls input{padding:8px;border-radius:6px;border:1px solid #dbe6eb;background:white}
+  .card{background:var(--card);padding:18px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.06)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+  .stat{background:var(--panel);padding:14px;border-radius:8px;border:1px solid #e6f1f6}
+  .label{font-size:12px;color:#6d7a82}
+  .value{font-weight:700;font-size:20px;margin-top:6px;color:#213a44}
+  .wide{grid-column:span 3}
+  .tables{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:18px}
+  .table-card{background:var(--card);padding:14px;border-radius:8px;border:1px solid #eef3f6}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px;border-bottom:1px solid #eef3f6;font-size:13px;text-align:left}
+  thead th{background:var(--accent);color:white;font-weight:600}
+  .hint{color:#6b7b86;font-size:13px;margin-top:12px}
+  .debug{margin-top:14px;padding:12px;background:#fff7e6;border:1px solid #ffe7c2;border-radius:8px;color:#8a5600}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}.tables{grid-template-columns:1fr}}
+  /* Print style */
+  @media print{
+    body{background:white}
+    .controls, .topbar {display:none}
+    .container{margin:0;padding:0}
+    .card, .table-card {box-shadow:none;border: none}
+  }
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>My Scorecard</h1>
-      <div class="muted">Open with <code>?id=60154741</code></div>
-    </header>
+  <div class="container">
+    <div class="topbar">
+      <h1>ScoreCard</h1>
+      <div class="controls">
+        <label class="muted">Period:</label>
+        <select id="periodSelect" title="Select period"></select>
+        <button id="goBtn">Show</button>
+        <button id="refreshBtn" title="Reload data">Refresh</button>
+        <button id="printBtn" title="Print / Export PDF">Print</button>
+      </div>
+    </div>
 
-    <div id="content" style="margin-top:16px;">Loading…</div>
+    <div id="mainCard" class="card">
+      <div id="status" class="muted">Loading...</div>
 
-    <div style="margin-top:14px;" class="muted">
-      Make sure your sheet is published (File → Publish to the web). If nothing shows, refresh after 15s.
+      <div id="content" style="display:none">
+        <div class="grid" id="statsGrid">
+          <!-- stats placed here -->
+        </div>
+
+        <div class="tables">
+          <div class="table-card" id="pmpiCard">
+            <h3 style="margin:0 0 8px 0; color:var(--accent)">PMPI Score</h3>
+            <div id="pmpiTableWrap">No PMPI data</div>
+          </div>
+
+          <div class="table-card" id="riderCard">
+            <h3 style="margin:0 0 8px 0; color:var(--accent)">Riders & Parameters</h3>
+            <div id="riderTableWrap">No Riders/Parameters</div>
+          </div>
+        </div>
+
+        <div class="hint">Make sure your sheet is published (File → Publish to the web). If nothing shows, refresh after 15s.</div>
+      </div>
+
+      <div id="debugPanel" style="display:none" class="debug"></div>
     </div>
   </div>
 
 <script>
 (async function(){
-  // ✅ Your real OpenSheet JSON URL
-  const sheetJson = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
+  // -------------- CONFIG --------------
+  const OPENSHEET_URL = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
+  const REQUIRED_TOKEN = ""; // set a token string here if you want token protection, e.g. "mysecret"
+  const AUTO_REFRESH_MS = 0; // set to 60000 for 60s, 0 to disable auto-refresh
 
+  // -------------- helpers --------------
+  const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(window.location.search);
-  const empId = (params.get('id') || '').trim();
-  const content = document.getElementById('content');
+  const EMP_ID = (params.get('id') || "").trim();
+  const URL_PERIOD = (params.get('period') || "").trim(); // prefer YYYY-MM
+  const URL_YEAR = params.get('year'); const URL_MONTH = params.get('month');
 
-  try {
-    const res = await fetch(sheetJson);
-    if (!res.ok) throw new Error('Fetch failed: ' + res.status);
-    const rows = await res.json();
+  // token protect
+  if (REQUIRED_TOKEN && params.get('token') !== REQUIRED_TOKEN) {
+    document.getElementById('status').innerHTML = '<strong style="color:#8b1a1a">Access denied — token missing or invalid.</strong>';
+    return;
+  }
 
-    if (!empId) {
-      content.innerHTML = `<div class="muted">No ?id= provided. Example: <code>?id=60154741</code></div>
-        <div style="margin-top:12px" class="muted">
-        Preview (first row): <pre style="white-space:pre-wrap">${JSON.stringify(rows[0]||{},null,2)}</pre></div>`;
-      return;
+  // DOM refs
+  const statusEl = $('status'), contentEl = $('content'), debugEl = $('debugPanel');
+  const periodSelect = $('periodSelect'), goBtn = $('goBtn'), refreshBtn = $('refreshBtn'), printBtn = $('printBtn');
+  const statsGrid = $('statsGrid'), pmpiWrap = $('pmpiTableWrap'), riderWrap = $('riderTableWrap');
+
+  // fetch sheet JSON (with retry)
+  async function fetchSheet(){
+    statusEl.textContent = 'Fetching sheet...';
+    const r = await fetch(OPENSHEET_URL, {cache:'no-store'});
+    if (!r.ok) throw new Error('Sheet fetch failed: ' + r.status);
+    return r.json();
+  }
+
+  // normalize sheet rows / headers (handle title row issues)
+  function normalizeRows(rows){
+    if (!rows || !rows.length) return [];
+    const first = rows[0];
+    // if first row keys are numeric or a single title, try using second row as header (OpenSheet sometimes uses title row)
+    const firstKeys = Object.keys(first).map(k => String(k).trim());
+    const looksLikeTitle = firstKeys.length === 1 || firstKeys.every(k => /^[\d\W]+$/.test(k) || k.length < 4);
+    if (looksLikeTitle && rows.length > 1) {
+      // create headers from second row values, map values from 3rd row onward
+      const headerRowVals = Object.values(rows[1]).map(v => String(v || '').trim());
+      const dataRows = rows.slice(2);
+      if (headerRowVals.every(h => h)) {
+        // rebuild objects using headerRowVals as keys
+        const rebuilt = dataRows.map(r => {
+          const vals = Object.values(r);
+          const obj = {};
+          headerRowVals.forEach((h,i)=> obj[h] = vals[i] ?? '');
+          return obj;
+        });
+        return rebuilt;
+      }
     }
+    return rows;
+  }
 
-    // Detect Employee ID header
-    const idKey = Object.keys(rows[0]||{}).find(k=>/emp/i.test(k)) || Object.keys(rows[0]||{})[0];
+  // detect period values (if sheet contains a Period or Year/Month columns)
+  function collectPeriods(rows){
+    const ks = Object.keys(rows[0]||{});
+    // common names
+    const periodKey = ks.find(k=>/period/i.test(k));
+    if (periodKey) return [...new Set(rows.map(r=>String(r[periodKey]||'').trim()).filter(Boolean))].sort().reverse();
 
-    const record = rows.find(r => {
-      const val = r[idKey] ?? r['Employee ID'] ?? r['EmpID'] ?? r['empid'] ?? r['ID'];
-      return val !== undefined && String(val).trim() === empId;
-    });
-
-    if (!record) {
-      content.innerHTML = `<div style="padding:12px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;border-radius:6px">
-        Employee <b>${empId}</b> not found. Check the Employee ID column name or spaces in the sheet.<br>
-        Detected header: <code>${idKey}</code><br>
-        Preview first row keys: <pre style="white-space:pre-wrap">${Object.keys(rows[0]||{}).join(', ')}</pre></div>`;
-      return;
+    const yearKey = ks.find(k=>/year/i.test(k));
+    const monthKey = ks.find(k=>/month/i.test(k));
+    if (yearKey && monthKey) {
+      const set = new Set();
+      rows.forEach(r=>{
+        const y = String(r[yearKey]||'').trim();
+        let m = String(r[monthKey]||'').trim();
+        if (m && m.length===1) m = '0'+m;
+        if (y && m) set.add(`${y}-${m}`);
+      });
+      return [...set].sort().reverse();
     }
+    // fallback: use header containing 2024- or month-like (not required)
+    return [];
+  }
 
-    // Find key names automatically
-    const findKey = (patterns) => {
-      const ks = Object.keys(record);
-      for (const p of patterns) {
-        const regex = new RegExp(p, 'i');
-        const found = ks.find(k => regex.test(k));
+  // find a row for emp + period or latest
+  function findRecord(rows, empId, period){
+    // detect id column
+    const possibleIdKeys = Object.keys(rows[0]||{}).filter(k=>/emp|id/i.test(k));
+    const idKey = possibleIdKeys[0] || Object.keys(rows[0]||{})[0];
+    // detect period key if present
+    const ks = Object.keys(rows[0]||{});
+    const periodKey = ks.find(k=>/period|yyyy|year|period/i.test(k));
+    // if period specified, match both
+    if (period) {
+      return rows.find(r => {
+        const idVal = String(r[idKey] || r['Employee ID'] || r['EmpID'] || r['empid'] || r['ID'] || '').trim();
+        const periodVal = String(r[periodKey] || r['Period'] || r['period'] || '').trim();
+        return idVal === empId && periodVal === period;
+      });
+    }
+    // if no period, return latest row for that emp (pick first match)
+    const matches = rows.filter(r => String(r[idKey] || '').trim() === empId);
+    return matches.length ? matches[0] : null;
+  }
+
+  // render stats grid from record with flexible key matching
+  function renderStats(rec){
+    const k = (pats)=> {
+      const keys = Object.keys(rec||{});
+      for (const pat of pats){
+        const re = new RegExp(pat,'i');
+        const found = keys.find(x => re.test(x));
         if (found) return found;
       }
       return null;
     };
 
-    const nameKey = findKey(['name','engineer']);
-    const onsiteKey = findKey(['onsite','Response']);
-    const overallKey = findKey(['overall','SLA']);
-    const totalKey = findKey(['total','VOLUME']);
-    const ttrKey = findKey(['ttr']);
-    const daKey = findKey(['DA']);
-    const ppmdKey = findKey(['PPMD']);
-    const ppmcKey = findKey(['PPMC']);
-    const m2mKey = findKey(['M2M']);
-    const hgKey = findKey(['HG']);
+    const get = (pats) => rec[k(pats)] ?? '';
 
-    // ✅ Render your data
-    content.innerHTML = `
-      <div class="grid">
-        <div class="card"><div class="label">Engineer Name</div><div class="value">${record[nameKey] || '--'}</div></div>
-        <div class="card"><div class="label">Onsite Response Met%</div><div class="value">${record[onsiteKey] || '--'}</div></div>
-        <div class="card"><div class="label">Overall SLA%</div><div class="value">${record[overallKey] || '--'}</div></div>
-        <div class="card"><div class="label">TOTAL CLOSED VOLUME</div><div class="value">${record[totalKey] || '--'}</div></div>
-        <div class="card"><div class="label">TTR Hours (Official)</div><div class="value">${record[ttrKey] || '--'}</div></div>
-        <div class="card"><div class="label">100% DA</div><div class="value">${record[daKey] || '--'}</div></div>
-        <div class="card"><div class="label">PPMD</div><div class="value">${record[ppmdKey] || '--'}</div></div>
-        <div class="card"><div class="label">PPMC</div><div class="value">${record[ppmcKey] || '--'}</div></div>
-        <div class="card"><div class="label">ECASE SLA M2M</div><div class="value">${record[m2mKey] || '--'}</div></div>
-        <div class="card"><div class="label">ECASE SLA HG</div><div class="value">${record[hgKey] || '--'}</div></div>
-      </div>
+    const html = `
+      <div class="stat"><div class="label">Engineer Name</div><div class="value">${get(['name','engineer'])||''}</div></div>
+      <div class="stat"><div class="label">Onsite Response Met%</div><div class="value">${get(['onsite','response'])||'--'}</div></div>
+      <div class="stat"><div class="label">Overall SLA%</div><div class="value">${get(['overall','sla'])||'--'}</div></div>
+      <div class="stat"><div class="label">TOTAL CLOSED VOLUME</div><div class="value">${get(['total','volume','closed'])||'--'}</div></div>
+      <div class="stat"><div class="label">TTR Hours (Official)</div><div class="value">${get(['ttr'])||'--'}</div></div>
+      <div class="stat"><div class="label">100% DA</div><div class="value">${get(['100%','da','100_da','da_100'])||'--'}</div></div>
+      <div class="stat"><div class="label">PPMD</div><div class="value">${get(['ppmd'])||'--'}</div></div>
+      <div class="stat"><div class="label">PPMC</div><div class="value">${get(['ppmc'])||'--'}</div></div>
+      <div class="stat"><div class="label">ECASE SLA M2M</div><div class="value">${get(['m2m','eCase','ecase m2m','M2M'])||'--'}</div></div>
+      <div class="stat wide"><div class="label">ECASE SLA HG</div><div class="value">${get(['hg','ECASE SLA HG','HG'])||'--'}</div></div>
     `;
+    statsGrid.innerHTML = html;
+  }
 
-  } catch (err) {
-    content.innerHTML = `<div style="color:#8b1a1a">Error loading sheet: ${err.message}</div>`;
-    console.error(err);
+  // render PMPI table; supports JSON-in-cell (string) or simple columns
+  function renderPmpi(rec, rows){
+    // try to locate a PMPI cell in record
+    const pmpiKey = Object.keys(rec||{}).find(k=>/pmpi|pm pi|pm-pi|pmpi/i.test(k));
+    if (pmpiKey && (rec[pmpiKey] || '').toString().trim()) {
+      let data = [];
+      try { data = JSON.parse(rec[pmpiKey]); }
+      catch(e){
+        // attempt to parse CSV-like "label:val;label2:val"
+        const s = (rec[pmpiKey]||'').toString();
+        data = s.split('|').map(r=>{
+          const parts = r.split(':');
+          return {param:parts[0]?.trim(), actual:parts[1]?.trim(), score:parts[2]?.trim()};
+        }).filter(x=>x.param);
+      }
+      if (data && data.length){
+        let html = '<table><thead><tr><th>Parameters</th><th>Actual</th><th>Score</th></tr></thead><tbody>';
+        data.forEach(d => html += `<tr><td>${d.param||d[0]||''}</td><td>${d.actual||d[1]||''}</td><td>${d.score||d[2]||''}</td></tr>`);
+        html += '</tbody></table>';
+        pmpiWrap.innerHTML = html;
+        return;
+      }
+    }
+
+    // fallback: try to build pmpi from rows where metric category indicates PMPI
+    // If nothing found
+    pmpiWrap.innerHTML = '<div class="muted">No PMPI data</div>';
+  }
+
+  // render riders and parameters (flexible)
+  function renderRiders(rec, rows){
+    const riderKey = Object.keys(rec||{}).find(k=>/rider|riders/i.test(k));
+    const paramKey = Object.keys(rec||{}).find(k=>/parameter|param/i.test(k));
+    let html = '';
+
+    if (riderKey && rec[riderKey]) {
+      try {
+        const riders = JSON.parse(rec[riderKey]);
+        if (Array.isArray(riders) && riders.length) {
+          html += '<h4 style="margin:0 0 8px 0">Riders</h4><table><thead><tr><th>Parameter</th><th>Actual</th><th>Score</th></tr></thead><tbody>';
+          riders.forEach(r=> html += `<tr><td>${r.param||r[0]||''}</td><td>${r.actual||r[1]||''}</td><td>${r.score||r[2]||''}</td></tr>`);
+          html += '</tbody></table>';
+        }
+      } catch(e){}
+    }
+
+    if (paramKey && rec[paramKey]) {
+      try {
+        const paramsArr = JSON.parse(rec[paramKey]);
+        if (Array.isArray(paramsArr) && paramsArr.length) {
+          html += '<h4 style="margin-top:12px">Parameters</h4><table><thead><tr><th>Parameter</th><th>Score</th></tr></thead><tbody>';
+          paramsArr.forEach(p=> html += `<tr><td>${p.param||p[0]||''}</td><td>${p.score||p[1]||''}</td></tr>`);
+          html += '</tbody></table>';
+        }
+      } catch(e){}
+    }
+
+    if (!html) html = '<div class="muted">No Riders/Parameters found</div>';
+    riderWrap.innerHTML = html;
+  }
+
+  // main load function
+  let originalRows = [];
+  async function loadAndRender(){
+    try {
+      statusEl.textContent = 'Loading sheet...';
+      const raw = await fetchSheet();
+      originalRows = normalizeRows(raw || []);
+      if (!originalRows.length) {
+        statusEl.innerHTML = '<span style="color:#8b1a1a">No data found in sheet</span>';
+        return;
+      }
+      statusEl.innerHTML = `<span style="color:green">Sheet loaded. ${originalRows.length} rows.</span>`;
+
+      // collect periods
+      const periods = collectPeriods(originalRows);
+      // populate periodSelect (keep current)
+      periodSelect.innerHTML = '<option value="">Latest</option>';
+      periods.forEach(p => {
+        const o = document.createElement('option'); o.value = p; o.textContent = p; periodSelect.appendChild(o);
+      });
+      // select URL period if present
+      if (URL_PERIOD) periodSelect.value = URL_PERIOD;
+
+      // prepare target period (param precedence)
+      let targetPeriod = URL_PERIOD || (URL_YEAR && URL_MONTH ? `${URL_YEAR}-${URL_MONTH.padStart(2,'0')}` : (periodSelect.value || ''));
+      if (!targetPeriod && periodSelect.value === '') {
+        // no period selected -> use latest available if periods exist
+        if (periods && periods.length) targetPeriod = periods[0];
+      }
+
+      // find record
+      const record = findRecord(originalRows, EMP_ID, targetPeriod);
+      if (!record) {
+        statusEl.innerHTML = `<span style="color:#8b1a1a">Employee ID ${EMP_ID || '(none)'} not found for period ${targetPeriod || 'latest'}.</span>`;
+        // show debug preview
+        debugEl.style.display = 'block';
+        debugEl.innerHTML = `<strong>Preview first row keys:</strong><br>${Object.keys(originalRows[0]).join(', ')}`;
+        contentEl.style.display = 'none';
+        return;
+      }
+
+      // render
+      contentEl.style.display = 'block';
+      debugEl.style.display = 'none';
+      renderStats(record);
+      renderPmpi(record, originalRows);
+      renderRiders(record, originalRows);
+      statusEl.innerHTML = `<span style="color:green">Showing ${EMP_ID} ${targetPeriod ? ' — ' + targetPeriod : ''}</span>`;
+
+    } catch(err) {
+      statusEl.innerHTML = `<span style="color:#8b1a1a">Error: ${err.message}</span>`;
+      console.error(err);
+    }
+  }
+
+  // initial render
+  await loadAndRender();
+
+  // UI bindings
+  goBtn.onclick = () => {
+    const v = periodSelect.value;
+    const q = new URLSearchParams(window.location.search);
+    if (v) q.set('period', v);
+    else q.delete('period');
+    window.location.search = q.toString();
+  };
+  refreshBtn.onclick = () => loadAndRender();
+  printBtn.onclick = () => window.print();
+
+  // Auto refresh
+  if (AUTO_REFRESH_MS && AUTO_REFRESH_MS>0) {
+    setInterval(loadAndRender, AUTO_REFRESH_MS);
   }
 })();
 </script>

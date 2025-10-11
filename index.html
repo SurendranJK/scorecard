@@ -1,172 +1,361 @@
+
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HPE Scorecard — Stack Rank</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ScoreCard — Hewlett Packard Enterprise</title>
 <style>
-body{font-family:Inter,Arial;background:#f7fafb;margin:0;color:#425563}
-header{display:flex;justify-content:space-between;align-items:center;padding:20px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.05)}
-h1{margin:0;color:#00739D;font-size:22px}
-main{padding:20px}
-input,select,button{padding:8px 10px;border-radius:6px;border:1px solid #ccd;}
-button{background:#00739D;color:white;border:none;cursor:pointer}
-table{width:100%;border-collapse:collapse;margin-top:20px;background:white;border-radius:8px;overflow:hidden}
-th,td{padding:12px;text-align:left;border-bottom:1px solid #eee}
-th{background:#00739D;color:white}
-td.good{color:green;font-weight:600}
-td.bad{color:red;font-weight:600}
-.top-right{text-align:right}
-.stat{font-size:14px;margin:3px 0}
+  :root{--hpe-blue:#00739D;--hpe-dark:#0b3b4a;--muted:#4d5a63;--bg:#f4f7f8;--panel:#ffffff;--panel-weak:#f1f7fb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter, "Segoe UI", Arial;color:var(--muted);background:var(--bg);-webkit-font-smoothing:antialiased}
+  .container{max-width:1200px;margin:28px auto;padding:18px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .title{font-weight:700;color:var(--hpe-blue);font-size:20px}
+  .brand .subtitle{font-size:13px;color:#2c4b56}
+  .controls{display:flex;gap:8px;align-items:center}
+  .controls select,.controls button,.controls input{padding:8px 10px;border-radius:8px;border:1px solid #d7e6eb;background:white}
+  .main-card{margin-top:16px;background:var(--panel);border-radius:12px;padding:18px;box-shadow:0 8px 28px rgba(10,20,30,0.06)}
+  .top-stats{display:flex;gap:14px;flex-wrap:wrap}
+  .stat-card{flex:1 1 30%;min-width:220px;background:var(--panel-weak);padding:18px;border-radius:8px;border:1px solid #e5f0f5;opacity:0;transform:translateY(8px);transition:all .45s ease}
+  .stat-card.show{opacity:1;transform:none}
+  .stat-label{font-size:13px;color:#6d7c84}
+  .stat-value{font-size:22px;font-weight:700;color:var(--hpe-dark);margin-top:8px}
+  .grid{display:grid;grid-template-columns:1fr 420px;gap:14px;margin-top:18px}
+  .panel{background:var(--panel);padding:14px;border-radius:8px;border:1px solid #eaf5f9}
+  .panel h3{margin:0;color:var(--hpe-blue);font-size:16px}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{padding:8px;border-bottom:1px solid #eef6f9;font-size:13px;text-align:left}
+  thead th{background:var(--hpe-blue);color:white;font-weight:600}
+  .muted{color:#64767d;font-size:13px}
+  .actions{display:flex;gap:10px;align-items:center}
+  .small{font-size:12px;padding:6px 8px}
+  .bottom-note{margin-top:12px;color:#66787f;font-size:13px}
+  .info { padding:12px; border-radius:8px; background:#fff9e6; border:1px solid #ffdca8; color:#6a4b00; margin-bottom:12px; }
+  .error { padding:12px; border-radius:8px; background:#fff1f1; border:1px solid #f2b0b0; color:#8b1a1a; margin-bottom:12px; }
+  @media (max-width:980px){.grid{grid-template-columns:1fr}.stat-card{min-width:unset}}
+  @media print{.controls, .topbar .actions {display:none} body{background:white}}
+  .right-controls {display:flex; align-items:center; gap:8px;}
+  .id-input {width:120px}
+  .label-inline {font-size:13px;color:#6b7b86;margin-right:6px}
 </style>
 </head>
 <body>
-<header>
-  <h1>HPE Engineer Scorecard</h1>
-  <div class="top-right">
-    <div id="engineerName" class="stat">Engineer: —</div>
-    <div id="engineerId" class="stat">ID: —</div>
-    <div id="stackRank" class="stat">Stack Rank: —</div>
-  </div>
-</header>
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">
+        <div>
+          <div class="title">ScoreCard</div>
+          <div class="subtitle">Hewlett Packard Enterprise — Live Performance</div>
+        </div>
+      </div>
 
-<main>
-  <div>
-    <label>Month:</label>
-    <select id="monthSelect"></select>
-    <label style="margin-left:10px;">Employee ID:</label>
-    <input id="empInput" placeholder="60154741">
-    <button id="apply">Apply</button>
-  </div>
+      <div class="controls">
+        <div class="muted">Month</div>
+        <select id="monthSelect" title="Select month"></select>
 
-  <div id="status" style="margin-top:10px;color:#00739D"></div>
-  <table id="scoreTable">
-    <thead>
-      <tr><th>Parameter</th><th>Target</th><th>Score</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</main>
+        <div class="right-controls">
+          <span class="label-inline">Employee ID</span>
+          <input id="empInput" class="id-input" type="text" placeholder=" " />
+          <button id="apply" class="small">Apply</button>
+          <button id="refresh" class="small">Refresh</button>
+          <button id="print" class="small">Print</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-card">
+      <div id="status" class="muted">Loading data…</div>
+
+      <div id="contentArea" style="display:none">
+        <div class="top-stats" id="topStats"></div>
+
+        <div class="grid">
+          <div class="panel" id="leftPanel">
+            <h3>PMPI Score</h3>
+            <div id="pmpiArea" class="muted" style="margin-top:10px">Loading PMPI…</div>
+          </div>
+
+          <div class="panel" id="rightPanel">
+            <h3>Riders / Parameters</h3>
+            <div id="riderArea" class="muted" style="margin-top:10px">Loading Riders…</div>
+          </div>
+        </div>
+
+        <div class="bottom-note">Make sure your Google Sheet is published (File → Publish to the web). Data updates when sheet updates.</div>
+      </div>
+
+      <div id="debugBox" style="display:none;margin-top:12px;"></div>
+    </div>
+  </div>
 
 <script>
+/*
+  Final ScoreCard index.html
+  - Reads OpenSheet JSON from your published sheet (edit OPENSHEET if you change sheet)
+  - Employee ID input + Month dropdown
+  - Friendly "No data found" messages when row is missing
+  - Tolerant header detection and title-row handling
+*/
+
 (async function(){
-const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
-const URL = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
-const TARGETS = {
-  "Onsite Response Met%":0.90,
-  "Overall SLA%":0.99,
-  "TTR Hours(Official)":30,
-  "100% DA":0.92,
-  "PPMD":1.13,
-  "ECASE SLA_M2M":0.97,
-  "ECASE SLA_HG":0.95
-};
+  // ---------- CONFIG ----------
+  const OPENSHEET = "https://opensheet.elk.sh/1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw/scores";
+  const AUTO_REFRESH_MS = 0; // set >0 to auto refresh in ms
 
-const empInput=document.getElementById('empInput');
-const monthSelect=document.getElementById('monthSelect');
-const applyBtn=document.getElementById('apply');
-const tbody=document.querySelector('#scoreTable tbody');
-const engineerName=document.getElementById('engineerName');
-const engineerId=document.getElementById('engineerId');
-const stackRank=document.getElementById('stackRank');
-const status=document.getElementById('status');
+  // ui refs
+  const status = document.getElementById('status');
+  const contentArea = document.getElementById('contentArea');
+  const debugBox = document.getElementById('debugBox');
+  const topStats = document.getElementById('topStats');
+  const pmpiArea = document.getElementById('pmpiArea');
+  const riderArea = document.getElementById('riderArea');
+  const monthSelect = document.getElementById('monthSelect');
+  const empInput = document.getElementById('empInput');
+  const btnApply = document.getElementById('apply');
+  const btnRefresh = document.getElementById('refresh');
+  const btnPrint = document.getElementById('print');
 
-let DATA=[];
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const params = new URLSearchParams(window.location.search);
+  let EMP_ID = (params.get('id') || '').trim();
+  const URL_PERIOD = (params.get('period') || '').trim();
+  const URL_YEAR = params.get('year');
+  const URL_MONTH = params.get('month');
 
-function parseNum(v){
-  if(!v) return null;
-  let s=String(v).trim();
-  if(s.includes('%')) return parseFloat(s)/100;
-  let n=parseFloat(s);
-  return isNaN(n)?null:n;
-}
+  if (EMP_ID) empInput.value = EMP_ID;
 
-function formatVal(v){
-  if(v==null||v==='')return '--';
-  if(v<=1) return (v*100).toFixed(2)+'%';
-  return v;
-}
+  function showStatus(msg, isError=false){
+    if (isError) {
+      status.innerHTML = `<span class="error">${msg}</span>`;
+    } else {
+      status.innerHTML = `<span class="info">${msg}</span>`;
+    }
+  }
 
-function better(val,tgt,param){
-  if(val==null||tgt==null) return null;
-  const lowerBetter=/ttr|ppmd/i.test(param);
-  return lowerBetter ? val<=tgt : val>=tgt;
-}
+  async function fetchSheet(){
+    showStatus('Fetching sheet...');
+    const res = await fetch(OPENSHEET, {cache:'no-store'});
+    if (!res.ok) throw new Error('Failed to fetch sheet: ' + res.status);
+    return res.json();
+  }
 
-function computeStackRanks(rows,period){
-  let sameMonth=rows.filter(r=>r.Period==period);
-  sameMonth.forEach(r=>{
-    let met=0,total=0;
-    for(let k in TARGETS){
-      if(r[k]!=null){
-        let val=parseNum(r[k]);
-        let ok=better(val,TARGETS[k],k);
-        if(ok!==null){total++; if(ok)met++;}
+  // normalize rows: if first row is a title, treat second row as headers
+  function normalize(rows){
+    if (!rows || !rows.length) return [];
+    const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
+    const looksLikeTitle = firstKeys.length === 1 || firstKeys.every(k => /^[\d\W]+$/.test(k) || k.length < 4);
+    if (looksLikeTitle && rows.length > 1){
+      const headers = Object.values(rows[1]).map(v => String(v||'').trim());
+      const dataRows = rows.slice(2);
+      if (headers.every(h => h)){
+        return dataRows.map(r => {
+          const vals = Object.values(r);
+          const obj = {};
+          headers.forEach((h,i)=> obj[h] = vals[i] ?? '');
+          return obj;
+        });
       }
     }
-    r.MetCount=met; r.TotalCount=total;
-    r.ScorePercent=total? (met/total)*100:0;
-  });
-  sameMonth.sort((a,b)=>{
-    if(b.ScorePercent!=a.ScorePercent)return b.ScorePercent-a.ScorePercent;
-    return (parseNum(b["TOTAL CLOSED VOLUME"])||0)-(parseNum(a["TOTAL CLOSED VOLUME"])||0);
-  });
-  sameMonth.forEach((r,i)=>r.StackRank=i+1);
-  return sameMonth;
-}
-
-function showEngineer(empId,period){
-  const monthRows=computeStackRanks(DATA,period);
-  const row=monthRows.find(r=>String(r["Employee ID"])===empId);
-  if(!row){
-    status.textContent=`No data found for Employee ${empId} in ${period}`;
-    engineerName.textContent='Engineer: —';
-    engineerId.textContent='ID: —';
-    stackRank.textContent='Stack Rank: —';
-    tbody.innerHTML='';
-    return;
+    return rows;
   }
-  engineerName.textContent='Engineer: '+(row["Engineer Name"]||'—');
-  engineerId.textContent='ID: '+(row["Employee ID"]||'—');
-  stackRank.textContent='Stack Rank: '+row.StackRank;
-  status.textContent=`Showing ${period}`;
-  tbody.innerHTML='';
-  Object.keys(TARGETS).forEach(k=>{
-    const val=parseNum(row[k]);
-    const ok=better(val,TARGETS[k],k);
-    const cls= ok==null ? '' : (ok?'good':'bad');
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${k}</td><td>${formatVal(TARGETS[k])}</td><td class="${cls}">${formatVal(val)}</td>`;
-    tbody.appendChild(tr);
-  });
-}
 
-async function init(){
-  const res=await fetch(URL);
-  DATA=await res.json();
-  const periods=[...new Set(DATA.map(r=>r.Period))].filter(Boolean).sort().reverse();
-  monthSelect.innerHTML='';
-  periods.forEach(p=>{
-    const [y,m]=p.split('-');
-    const monthName=new Date(`${y}-${m}-01`).toLocaleString('default',{month:'long'});
-    const opt=document.createElement('option');
-    opt.value=p; opt.textContent=`${monthName} ${y}`;
-    monthSelect.appendChild(opt);
-  });
-  const params=new URLSearchParams(location.search);
-  const emp=params.get('id')||''; if(emp) empInput.value=emp;
-  const per=params.get('period')||periods[0];
-  monthSelect.value=per;
-  if(emp) showEngineer(emp,per);
-}
-applyBtn.onclick=()=>{
-  const emp=empInput.value.trim();
-  const per=monthSelect.value;
-  if(!emp||!per)return alert("Enter Employee ID and select month");
-  const q=new URLSearchParams(); q.set('id',emp); q.set('period',per);
-  location.search=q.toString();
-};
-init();
+  function collectPeriods(rows){
+    const ks = Object.keys(rows[0]||{});
+    const periodKey = ks.find(k=>/period/i.test(k));
+    if (periodKey) return [...new Set(rows.map(r=>String(r[periodKey]||'').trim()).filter(Boolean))].sort().reverse();
+    const yearKey = ks.find(k=>/year/i.test(k));
+    const monthKey = ks.find(k=>/month/i.test(k));
+    if (yearKey && monthKey){
+      const set = new Set();
+      rows.forEach(r=>{
+        const y = String(r[yearKey]||'').trim();
+        let m = String(r[monthKey]||'').trim();
+        if (m && m.length===1) m = '0'+m;
+        if (y && m) set.add(`${y}-${m}`);
+      });
+      return [...set].sort().reverse();
+    }
+    return [];
+  }
+
+  function detectIdKey(row){
+    return Object.keys(row||{}).find(k=>/emp|id/i.test(k)) || Object.keys(row||{})[0];
+  }
+
+  function findRecord(rows, emp, period){
+    const idKey = detectIdKey(rows[0]||{});
+    const ks = Object.keys(rows[0]||{});
+    const periodKey = ks.find(k=>/period|year/i.test(k));
+    if (period && periodKey) {
+      return rows.find(r => (String(r[idKey]||'').trim() === emp) && (String(r[periodKey]||'').trim() === period));
+    }
+    const matches = rows.filter(r => String(r[idKey]||'').trim() === emp);
+    return matches.length ? matches[0] : null;
+  }
+
+  function findKey(rec, patterns){
+    const ks = Object.keys(rec||{});
+    for (const p of patterns){
+      const re = new RegExp(p,'i');
+      const found = ks.find(k=>re.test(k));
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function renderTopStats(rec){
+    topStats.innerHTML = '';
+    const rows = [
+      {label:'Engineer Name', val: rec[ findKey(rec,['name','engineer']) ] || rec['Engineer Name'] || ''},
+      {label:'Onsite Response Met%', val: rec[ findKey(rec,['onsite','response']) ] || rec['Onsite Response Met%'] || '--'},
+      {label:'Overall SLA%', val: rec[ findKey(rec,['overall','SLA']) ] || rec['Overall SLA%'] || '--'},
+      {label:'TOTAL CLOSED VOLUME', val: rec[ findKey(rec,['total','volume','closed']) ] || rec['TOTAL CLOSED VOLUME'] || '--'},
+      {label:'TTR Hours (Official)', val: rec[ findKey(rec,['ttr','TTR']) ] || '--'},
+      {label:'100% DA', val: rec[ findKey(rec,['da','100%']) ] || rec['100% DA'] || '--'},
+      {label:'PPMD', val: rec[ findKey(rec,['ppmd']) ] || '--'},
+      {label:'PPMC', val: rec[ findKey(rec,['ppmc']) ] || '--'},
+      {label:'ECASE SLA HG', val: rec[ findKey(rec,['hg','ECASE SLA HG']) ] || rec['ECASE SLA_HG'] || '--'}
+    ];
+    rows.forEach((r,i)=>{
+      const div = document.createElement('div');
+      div.className = 'stat-card';
+      div.innerHTML = `<div class="stat-label">${r.label}</div><div class="stat-value">${r.val}</div>`;
+      topStats.appendChild(div);
+      setTimeout(()=>div.classList.add('show'), 120 * i);
+    });
+  }
+
+  function renderPMPI(rec){
+    pmpiArea.innerHTML = '<div class="muted">No PMPI data</div>';
+    const key = findKey(rec, ['pmpi','p m p i','pm pi','pmpi score']);
+    if (!key) return;
+    let data = [];
+    try { data = JSON.parse(rec[key]); }
+    catch(e){
+      const s = String(rec[key]||'').trim();
+      if (!s) return;
+      data = s.split(/\r?\n/).map(line=>{
+        const parts = line.split('|').map(x=>x.trim());
+        return {param:parts[0], actual:parts[1], score:parts[2]};
+      }).filter(x=>x.param);
+    }
+    if (!data.length) return;
+    let html = '<table><thead><tr><th>Parameters</th><th>Actual</th><th>PMPI Score</th></tr></thead><tbody>';
+    data.forEach(d => html += `<tr><td>${d.param||''}</td><td>${d.actual||''}</td><td>${d.score||''}</td></tr>`);
+    html += '</tbody></table>';
+    pmpiArea.innerHTML = html;
+  }
+
+  function renderRiders(rec){
+    riderArea.innerHTML = '<div class="muted">No Riders/Parameters</div>';
+    const riderKey = findKey(rec, ['rider','riders']);
+    const paramKey = findKey(rec, ['parameter','parameters','param']);
+    let html = '';
+    if (riderKey && rec[riderKey]) {
+      try {
+        const arr = JSON.parse(rec[riderKey]);
+        if (Array.isArray(arr) && arr.length) {
+          html += '<h4 style="margin:0 0 6px 0">Riders</h4><table><thead><tr><th>Parameter</th><th>Actual</th><th>Score</th></tr></thead><tbody>';
+          arr.forEach(a => html += `<tr><td>${a.param||a[0]||''}</td><td>${a.actual||a[1]||''}</td><td>${a.score||a[2]||''}</td></tr>`);
+          html += '</tbody></table>';
+        }
+      } catch(e){}
+    }
+    if (paramKey && rec[paramKey]) {
+      try {
+        const parr = JSON.parse(rec[paramKey]);
+        if (Array.isArray(parr) && parr.length) {
+          html += '<h4 style="margin:12px 0 6px 0">Parameters</h4><table><thead><tr><th>Parameter</th><th>Score</th></tr></thead><tbody>';
+          parr.forEach(p => html += `<tr><td>${p.param||p[0]||''}</td><td>${p.score||p[1]||''}</td></tr>`);
+          html += '</tbody></table>';
+        }
+      } catch(e){}
+    }
+    if (html) riderArea.innerHTML = html;
+  }
+
+  // ---------------- load() with friendly messages ----------------
+  async function load(){
+    try {
+      const r = await fetch(OPENSHEET, {cache:'no-store'});
+      if (!r.ok) throw new Error('Failed to fetch sheet: ' + r.status);
+      const raw = await r.json();
+      const rows = normalize(raw || []);
+
+      if (!rows.length) {
+        showStatus('No data in sheet', true);
+        contentArea.style.display = 'none';
+        debugBox.style.display = 'none';
+        monthSelect.innerHTML = '<option value="">No months</option>';
+        return;
+      }
+
+      showStatus('Sheet loaded — ' + rows.length + ' rows');
+
+      const periods = collectPeriods(rows);
+      monthSelect.innerHTML = '<option value="">Latest</option>';
+      periods.forEach(p => {
+        const [y,m] = p.split('-');
+        const formatted = (monthNames[parseInt(m,10)-1] || m) + ' ' + y;
+        const o = document.createElement('option'); o.value = p; o.textContent = formatted; monthSelect.appendChild(o);
+      });
+
+      if (URL_PERIOD) monthSelect.value = URL_PERIOD;
+
+      // prefer typed input, else URL param
+      EMP_ID = (empInput.value || EMP_ID || '').trim();
+      if (EMP_ID) empInput.value = EMP_ID;
+
+      let target = URL_PERIOD || (URL_YEAR && URL_MONTH ? `${URL_YEAR}-${String(URL_MONTH).padStart(2,'0')}` : '');
+      if (!target && periods.length) target = periods[0];
+
+      const rec = findRecord(rows, EMP_ID, target);
+
+      if (!rec) {
+        const periodPretty = target ? ((monthNames[parseInt(target.split('-')[1],10)-1] || target.split('-')[1]) + ' ' + target.split('-')[0]) : 'latest';
+        const empText = EMP_ID ? `Employee ${EMP_ID}` : 'Employee (none)';
+        const msg = `No data found for ${empText} in ${periodPretty}.`;
+        showStatus(msg, true);
+        contentArea.style.display = 'none';
+        debugBox.style.display = 'none';
+        return;
+      }
+
+      // render the UI
+      contentArea.style.display = 'block';
+      debugBox.style.display = 'none';
+      renderTopStats(rec);
+      renderPMPI(rec);
+      renderRiders(rec);
+
+      const prettyTarget = target ? ((monthNames[parseInt(target.split('-')[1],10)-1] || target.split('-')[1]) + ' ' + target.split('-')[0]) : '';
+      showStatus(`Showing ${EMP_ID}${prettyTarget ? ' — ' + prettyTarget : ''}`, false);
+
+    } catch (err) {
+      showStatus('Error: ' + err.message, true);
+      console.error(err);
+    }
+  }
+
+  // initial load
+  await load();
+
+  // UI actions
+  btnApply.onclick = () => {
+    const chosenMonth = monthSelect.value;
+    const typedId = (empInput.value || '').trim();
+    const q = new URLSearchParams(window.location.search);
+    if (typedId) q.set('id', typedId);
+    if (chosenMonth) q.set('period', chosenMonth); else q.delete('period');
+    window.location.search = q.toString(); // reloads page with new params
+  };
+  btnRefresh.onclick = () => load();
+  btnPrint.onclick = () => window.print();
+
+  if (AUTO_REFRESH_MS > 0) setInterval(load, AUTO_REFRESH_MS);
+
 })();
 </script>
 </body>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Scorecard — Debug</title>
+  <style>
+    body{font-family:Segoe UI,Roboto,Arial; background:#f5f7fa; color:#233; padding:18px;}
+    .wrap{max-width:980px;margin:18px auto;background:#fff;padding:18px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.06);}
+    .muted{color:#666;font-size:13px}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #e6e9ee;padding:8px;text-align:left;font-size:13px}
+    pre{background:#0b1220;color:#dbeafe;padding:12px;border-radius:6px;overflow:auto}
+    .notfound{padding:18px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;border-radius:6px}
+    .ok{padding:12px;background:#f0fff4;border:1px solid #bde7c8;color:#165b2d;border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Scorecard (debug view)</h2>
+    <p class="muted">This page reads your Google Sheet JSON and displays the record for the requested employee id. Use <code>?id=YOUR_EMP_ID</code> in the URL.</p>
+
+    <div id="status" class="muted">Initializing…</div>
+
+    <hr/>
+
+    <div id="result"></div>
+
+    <hr/>
+    <h4>Debug / loaded data preview (first 10 rows)</h4>
+    <div id="preview"><em>Waiting for load...</em></div>
+
+    <hr/>
+    <h4>Notes</h4>
+    <ul class="muted">
+      <li>Make sure you open the page with <code>?id=60154741</code> (example).</li>
+      <li>If employee not found, check exact header name in sheet (case-sensitive). This page helps show those headers.</li>
+    </ul>
+  </div>
+
+<script>
+(async function(){
+  const sheetJsonUrl = "https://opensheet.elk.sh/1H7pPn9knLcaGZ8inmykqAmZMqCNnCtX2aV5uBn7m84M/scores";
+  const statusEl = document.getElementById('status');
+  const resultEl = document.getElementById('result');
+  const previewEl = document.getElementById('preview');
+
+  statusEl.textContent = 'Fetching sheet JSON…';
+
+  try {
+    const res = await fetch(sheetJsonUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' - ' + res.statusText);
+    const data = await res.json();
+
+    statusEl.innerHTML = `<span class="ok">Sheet loaded. ${data.length} rows.</span>`;
+
+    // Show preview
+    const previewRows = data.slice(0,10);
+    if (previewRows.length === 0) {
+      previewEl.innerHTML = '<div class="notfound">Sheet is empty or headers missing.</div>';
+    } else {
+      // build table of first 10 rows
+      const keys = Object.keys(previewRows[0]);
+      let html = '<table><thead><tr>' + keys.map(k=>`<th>${k}</th>`).join('') + '</tr></thead><tbody>';
+      previewRows.forEach(r=>{
+        html += '<tr>' + keys.map(k=>`<td>${(r[k]===undefined||r[k]==='')? '&nbsp;' : String(r[k])}</td>`).join('') + '</tr>';
+      });
+      html += '</tbody></table>';
+      previewEl.innerHTML = html;
+    }
+
+    // get id param
+    const params = new URLSearchParams(window.location.search);
+    const empId = params.get('id');
+    if (!empId) {
+      resultEl.innerHTML = `<div class="notfound"><strong>No ?id= provided.</strong> Example: <code>?id=60154741</code></div>`;
+      return;
+    }
+
+    // tolerant matching for EmpID column (case variations)
+    const possibleIdKeys = ['EmpID','empid','EmpId','empId','ID','Id','id','EmployeeID','EmployeeId','employeeid'];
+    let idKey = null;
+    const sample = data[0] || {};
+    for (const k of Object.keys(sample)) {
+      if (possibleIdKeys.includes(k)) { idKey = k; break; }
+    }
+    // if still not found, try to auto-detect numeric-looking header
+    if (!idKey) {
+      for (const k of Object.keys(sample)) {
+        // pick any header that contains 'id' (case-insensitive)
+        if (k.toLowerCase().includes('id')) { idKey = k; break; }
+      }
+    }
+    // fallback: use first header if nothing else
+    if (!idKey) idKey = Object.keys(sample)[0];
+
+    // find record by comparing strings trimmed
+    const record = data.find(r => {
+      const v = r[idKey];
+      return v !== undefined && String(v).trim() === String(empId).trim();
+    });
+
+    if (!record) {
+      resultEl.innerHTML = `<div class="notfound"><strong>Employee ID <code>${empId}</code> not found.</strong><br/>Detected ID header: <code>${idKey}</code>. Please verify the value in your sheet matches exactly (no extra spaces).</div>`;
+      return;
+    }
+
+    // Display record nicely - show common fields and then raw JSON
+    const nameKey = Object.keys(record).find(k=>/name/i.test(k)) || 'Name';
+    const totalKey = Object.keys(record).find(k=>/total/i.test(k)) || 'TotalScore';
+    const rankKey = Object.keys(record).find(k=>/rank/i.test(k)) || 'StackRank';
+    const incentiveKey = Object.keys(record).find(k=>/incent/i.test(k)) || 'Incentive';
+
+    let outHtml = `<h3>${record[nameKey] || '—'}</h3>`;
+    outHtml += `<p><b>${idKey}:</b> ${record[idKey] || '—'}</p>`;
+    outHtml += `<p><b>Total Score:</b> ${record[totalKey] || '—'}</p>`;
+    outHtml += `<p><b>Stack Rank:</b> ${record[rankKey] || '—'}</p>`;
+    outHtml += `<p><b>Incentive:</b> ${record[incentiveKey] || '—'}</p>`;
+    outHtml += `<details style="margin-top:12px"><summary>Full row JSON</summary><pre>${JSON.stringify(record, null, 2)}</pre></details>`;
+
+    resultEl.innerHTML = outHtml;
+
+  } catch (err) {
+    statusEl.innerHTML = `<div class="notfound">Error fetching sheet: ${err.message}</div>`;
+    previewEl.innerHTML = '';
+    console.error(err);
+  }
+})();
+</script>
+
+</body>
+</html>

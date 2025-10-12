@@ -36,7 +36,6 @@
   .header-left{ display:flex; align-items:center; gap:10px; }
   .logo svg{ height:34px; width:auto; display:block; }
 
-  /* Center only ASC Server Support */
   header { position: relative; }
   .brand {
     position: absolute;
@@ -48,7 +47,6 @@
   .brand .title{ font-weight:700; color:var(--hpe-blue); font-size:18px; }
 
   .controls{ display:flex; gap:8px; align-items:center; position:relative; }
-
   select,input{ padding:8px; border-radius:8px; border:1px solid #dfeff3; background:white; }
   button{ padding:8px 10px; border-radius:8px; border:0; background:var(--hpe-blue); color:white; cursor:pointer; }
 
@@ -185,7 +183,7 @@
     <button id="apply">Apply</button>
 
     <div class="export-container">
-      <button class="export-btn">Export ⬇️</button>
+      <button class="export-btn">Export</button>
       <div class="export-menu" id="exportMenu">
         <button id="exportCSV">Export as CSV</button>
         <button id="exportPDF">Export as PDF</button>
@@ -232,6 +230,11 @@
     "100% DA","PPMD","PPMC","ECASE SLA_M2M","ECASE SLA_HG"
   ];
 
+  const FALLBACK_TARGETS = {
+    "Onsite Response Met%": 0.9, "Overall SLA%": 0.99, "TTR Hours(Official)": 30,
+    "100% DA": 0.92, "PPMD": 1.13, "PPMC": 1.13, "ECASE SLA_M2M": 0.97, "ECASE SLA_HG": 0.95
+  };
+
   const monthSelect=document.getElementById('monthSelect');
   const empInput=document.getElementById('empInput');
   const applyBtn=document.getElementById('apply');
@@ -240,36 +243,24 @@
   const idCell=document.getElementById('engineerIdInTable');
   const monthCell=document.getElementById('engineerMonthInTable');
   const stackCell=document.getElementById('engineerStackInTable');
-  const missingDataEl=document.getElementById('missingData');
 
   const exportBtn=document.querySelector('.export-btn');
   const exportMenu=document.getElementById('exportMenu');
 
   exportBtn.onclick=()=>exportMenu.style.display=exportMenu.style.display==='block'?'none':'block';
-  document.addEventListener('click',e=>{
-    if(!e.target.closest('.export-container'))exportMenu.style.display='none';
-  });
+  document.addEventListener('click',e=>{if(!e.target.closest('.export-container'))exportMenu.style.display='none';});
 
   document.getElementById('exportPrint').onclick=()=>window.print();
-
   document.getElementById('exportCSV').onclick=()=>{
     const rows=[...document.querySelectorAll('table tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(td=>td.innerText));
     const csv=rows.map(r=>r.join(',')).join('\n');
     const blob=new Blob([csv],{type:'text/csv'});
-    const link=document.createElement('a');
-    link.href=URL.createObjectURL(blob);
-    link.download='scorecard.csv';
-    link.click();
+    const link=document.createElement('a'); link.href=URL.createObjectURL(blob);
+    link.download='scorecard.csv'; link.click();
   };
-
   document.getElementById('exportPDF').onclick=()=>{
     html2pdf().set({filename:'ScoreCard.pdf'}).from(document.querySelector('.card')).save();
   };
-
-  const params=new URLSearchParams(window.location.search);
-  const initialId=(params.get('id')||'').trim();
-  const initialPeriod=(params.get('period')||'').trim();
-  if(initialId)empInput.value=initialId;
 
   function formatMonth(period){
     if(!period)return'—';
@@ -277,37 +268,42 @@
     return new Date(`${y}-${m}-01`).toLocaleString('default',{month:'short',year:'numeric'});
   }
 
-  async function fetchJson(url){const res=await fetch(url,{cache:'no-store'});return res.json();}
-  function normalize(rows){return rows;}
+  async function fetchJson(url){const r=await fetch(url,{cache:'no-store'});return r.json();}
   function findKey(r,n){const k=Object.keys(r);for(const x of n){const f=k.find(y=>y.toLowerCase().includes(x.toLowerCase()));if(f)return f;}return null;}
   function parseNumeric(v){if(v==null)return null;const s=String(v).trim();if(s.includes('%'))return parseFloat(s)/100;return parseFloat(s);}
   function formatDisplay(v,m){if(v==null)return'--';const p=/SLA|DA|Met|ECASE/i.test(m);return p?(v<=1?(v*100).toFixed(2):v.toFixed(2))+'%':v.toFixed(2);}
   function lowerIsBetter(m){return/ttr|ppmd|ppmc/i.test(m);}
   function meetsTarget(m,s,t){return s==null||t==null?null:(lowerIsBetter(m)?s<=t:s>=t);}
 
-  async function show(scores,targets,id,p){
+  const s=await fetchJson(URL_SCORES),t=await fetchJson(URL_TARGETS);
+  const periods=[...new Set(s.map(r=>r.Period))].sort().reverse();
+  periods.forEach(p=>monthSelect.appendChild(new Option(formatMonth(p),p)));
+  const params=new URLSearchParams(window.location.search);
+  const initialId=params.get('id')||''; const initialPeriod=params.get('period')||periods[0];
+  empInput.value=initialId; monthSelect.value=initialPeriod;
+
+  async function show(id,p){
     tbody.innerHTML='';
-    const rows=scores.filter(r=>r[findKey(r,['Period'])]===p);
-    const e=rows.find(r=>r[findKey(r,['Employee'])]===id||r[findKey(r,['ID'])]===id);
+    const rows=s.filter(r=>r.Period===p);
+    const e=rows.find(r=>r["Employee ID"]===id||r["EmpID"]===id);
     if(!e)return;
-    nameCell.textContent=e[findKey(e,['Engineer'])]||'—';
+    nameCell.textContent=e["Engineer Name"]||'—';
     idCell.textContent='ID: '+id;
     monthCell.textContent='Month: '+formatMonth(p);
     stackCell.textContent='Stack Rank: —';
+    const avg=rows.reduce((a,r)=>a+(parseNumeric(r["TOTAL CLOSED VOLUME"])||0),0)/rows.length||0;
     PARAMETERS.forEach(m=>{
-      const t=1,s=parseNumeric(e[findKey(e,[m])]),ok=meetsTarget(m,s,t);
+      let tVal=m==="TOTAL CLOSED VOLUME"?avg:(FALLBACK_TARGETS[m]||1);
+      const sVal=parseNumeric(e[m]);
+      const ok=meetsTarget(m,sVal,tVal);
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${m}</td><td>${formatDisplay(t,m)}</td><td class="${ok?'good':'bad'}">${formatDisplay(s,m)}</td>`;
+      tr.innerHTML=`<td>${m}</td><td>${formatDisplay(tVal,m)}</td><td class="${ok?'good':'bad'}">${formatDisplay(sVal,m)}</td>`;
       tbody.appendChild(tr);
     });
   }
 
-  const s=await fetchJson(URL_SCORES),t=await fetchJson(URL_TARGETS);
-  const periods=[...new Set(s.map(r=>r.Period))].sort().reverse();
-  periods.forEach(p=>monthSelect.appendChild(new Option(formatMonth(p),p)));
-  monthSelect.value=initialPeriod||periods[0];
   applyBtn.onclick=()=>{const q=new URLSearchParams();q.set('id',empInput.value.trim());q.set('period',monthSelect.value);location.search=q.toString();};
-  if(initialId)await show(s,t,initialId,monthSelect.value);
+  if(initialId)await show(initialId,monthSelect.value);
 })();
 </script>
 </body>

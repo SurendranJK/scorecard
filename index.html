@@ -64,7 +64,7 @@
 
   .controls{
     display:flex;
-    gap:10px;
+    gap:8px;
     align-items:center;
   }
 
@@ -82,6 +82,11 @@
     background:var(--hpe-blue);
     color:white;
     cursor:pointer;
+  }
+
+  button.small{
+    padding:6px 8px;
+    font-size:13px;
   }
 
   main{
@@ -151,6 +156,8 @@
     <input id="empInput" placeholder=" " />
     <button id="apply">Go</button>
     <button id="print" class="small">Print</button>
+    <button id="exportCsv" class="small" title="Download CSV">Export CSV</button>
+    <button id="exportPdf" class="small" title="Export PDF">Export PDF</button>
   </div>
 </header>
 
@@ -223,6 +230,10 @@
   const missingTargetsEl = document.getElementById('missingTargets');
   const missingDataEl = document.getElementById('missingData');
 
+  const printBtn = document.getElementById('print');
+  const exportCsvBtn = document.getElementById('exportCsv');
+  const exportPdfBtn = document.getElementById('exportPdf');
+
   const params = new URLSearchParams(window.location.search);
   let EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
@@ -239,7 +250,6 @@
     return r.json();
   }
 
-  // Some Sheets exported by OpenSheet have a title row; normalize to usable rows
   function normalize(rows){
     if (!rows || !rows.length) return [];
     const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
@@ -259,7 +269,6 @@
     return rows;
   }
 
-  // parse number or percent (returns numeric; percents -> fraction)
   function parseNumeric(v){
     if (v == null || v === '') return null;
     const s = String(v).trim();
@@ -273,7 +282,6 @@
     return n;
   }
 
-  // metric-aware formatting (numbers vs percentages)
   function formatDisplay(val, metric = '') {
     if (val == null) return '--';
     const isPercentMetric = /Onsite Response Met%|Overall SLA%|100% DA|ECASE SLA_M2M|ECASE SLA_HG/i.test(metric);
@@ -291,7 +299,6 @@
     return n.toFixed(2);
   }
 
-  // find key in row object by list of possible names (case-insensitive + fuzzy)
   function findKey(obj, names){
     const keys = Object.keys(obj||{});
     for (const n of names){
@@ -306,12 +313,10 @@
     return null;
   }
 
-  // metrics where lower is better
   function lowerIsBetter(metric){
     return /ttr|ppmd|ppmc/i.test(metric);
   }
 
-  // compare score vs target
   function meetsTarget(metric, scoreVal, targetVal){
     if (scoreVal == null || targetVal == null) return null;
     return lowerIsBetter(metric) ? (scoreVal <= targetVal) : (scoreVal >= targetVal);
@@ -328,7 +333,6 @@
     return count ? (sum / count) : null;
   }
 
-  // compute stack ranks using considered metrics (includes TOTAL CLOSED VOLUME)
   function computeRanks(rowsForPeriod, effectiveTargets){
     const entries = rowsForPeriod.map(r => {
       let met = 0, considered = 0;
@@ -351,13 +355,11 @@
       return {row: r, empId: empIdVal, met, considered, scorePercent, totalClosed};
     });
 
-    // sort by score percent then total closed desc
     entries.sort((a,b) => {
       if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
       return b.totalClosed - a.totalClosed;
     });
 
-    // assign ranks (ties share same rank; next rank is index+1)
     let prev = null, rank = 0;
     entries.forEach((e,i) => {
       if (prev === null || e.scorePercent !== prev) rank = i+1;
@@ -398,13 +400,11 @@
     missingTargetsEl.style.display = 'none';
     missingDataEl.style.display = 'none';
 
-    // filter rows for selected period
     const rowsForPeriod = allScores.filter(r => {
       const pkey = findKey(r, ['Period','period']);
       return pkey && String(r[pkey]||'').trim() === String(period).trim();
     });
 
-    // find employee row in that period
     const empRow = rowsForPeriod.find(r => {
       const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
       return idKey && String(r[idKey]||'').trim() === String(empId).trim();
@@ -417,16 +417,12 @@
       return;
     }
 
-    // find period-level targets (optional)
     let targetRowForPeriod = allTargets.find(r => {
       const pKey = findKey(r, ['Period','period']);
       return pKey && String(r[pKey]||'').trim() === String(period).trim();
     });
 
-    // avg total closed volume fallback
     const avgTotalClosed = computeAverageTotalClosed(rowsForPeriod);
-
-    // build effective targets precedence: period-row -> fallback -> null
     const effectiveTargets = {};
     PARAMETERS.forEach(metric => {
       if (targetRowForPeriod) {
@@ -441,19 +437,16 @@
       effectiveTargets[metric] = null;
     });
 
-    // compute ranks and show my rank
     const rankingEntries = computeRanks(rowsForPeriod, effectiveTargets);
     const myEntry = rankingEntries.find(e => String(e.empId) === String(empId));
     if (myEntry) stackRankEl.textContent = 'Stack Rank: ' + myEntry.rank;
     else stackRankEl.textContent = 'Stack Rank: —';
 
-    // header info (left)
     const nameKey = findKey(empRow, ['Engineer Name','Name','Engineer']);
     const idKey = findKey(empRow, ['Employee ID','EmpID','EmployeeID','ID']);
     engineerNameEl.textContent = nameKey ? (empRow[nameKey] || '—') : '—';
     engineerIdEl.textContent = 'ID: ' + (idKey ? (empRow[idKey] || '—') : empId);
 
-    // populate table
     tbody.innerHTML = '';
     PARAMETERS.forEach(metric => {
       const targetRaw = effectiveTargets[metric];
@@ -474,10 +467,94 @@
       tbody.appendChild(tr);
     });
 
-    // intentionally not showing the avg TOTAL CLOSED VOLUME note per request
     setStatus(`Prepared view for ${engineerNameEl.textContent} — ${period}`);
   }
 
+  // ---------- Export helpers ----------
+
+  // CSV escape helper
+  function csvEscape(value) {
+    if (value == null) return '';
+    const s = String(value).replace(/\r?\n/g, ' ');
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  // Export current table to CSV (filename optional)
+  function exportTableToCSV(filename = 'scorecard.csv') {
+    const rows = [];
+    // header
+    const headerCells = Array.from(document.querySelectorAll('#compareTable thead th')).map(th => th.textContent.trim());
+    rows.push(headerCells.map(csvEscape).join(','));
+    // body
+    const trs = Array.from(document.querySelectorAll('#compareTable tbody tr'));
+    trs.forEach(tr => {
+      const cols = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
+      rows.push(cols.map(csvEscape).join(','));
+    });
+    const csv = rows.join('\n');
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // Create a printable HTML for PDF export (simple)
+  function exportTableToPDF(periodLabel = '') {
+    // build a minimal HTML containing the card content
+    const title = document.querySelector('.card-title')?.textContent || 'Score Card';
+    const name = document.getElementById('engineerName')?.textContent || '';
+    const id = document.getElementById('engineerId')?.textContent || '';
+    const rank = document.getElementById('stackRank')?.textContent || '';
+    const tableHtml = document.getElementById('compareTable').outerHTML;
+
+    const style = `
+      <style>
+        body{font-family:Inter,Arial,Helvetica,sans-serif;color:#263238;margin:20px;}
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+        .title{font-size:20px;font-weight:700;color:${getComputedStyle(document.documentElement).getPropertyValue('--hpe-blue') || '#00739D'};}
+        table{width:100%;border-collapse:collapse;margin-top:8px;}
+        thead th{background:${getComputedStyle(document.documentElement).getPropertyValue('--hpe-blue') || '#00739D'};color:#fff;padding:8px;text-align:left;}
+        td,th{padding:8px;border:1px solid #e6eef3;}
+      </style>`;
+
+    const html = `
+      <!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${style}</head><body>
+      <div class="header">
+        <div>
+          <div class="title">${title}${periodLabel ? ' — ' + periodLabel : ''}</div>
+          <div>${name} ${id ? ' | ' + id : ''} ${rank ? ' | ' + rank : ''}</div>
+        </div>
+      </div>
+      ${tableHtml}
+      </body></html>`;
+
+    // open new window and print
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('Popup blocked. Please allow popups for this site to export PDF.');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    // Wait a bit for content to render then trigger print
+    win.focus();
+    setTimeout(() => {
+      try { win.print(); } catch (e) { console.error(e); }
+      // Optionally close after printing (commented out to let user decide)
+      // win.close();
+    }, 600);
+  }
+
+  // ---------- Boot / UI wiring ----------
   async function boot(){
     try {
       const {scores, targets} = await loadAll();
@@ -493,7 +570,7 @@
         const [y,m] = p.split('-');
         let label = p;
         if (y && m && m.length) {
-          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'long'}) + ' ' + y; } catch(e){}
+          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'short', year:'numeric'}); } catch(e){}
         }
         monthSelect.appendChild(new Option(label,p));
       });
@@ -511,11 +588,41 @@
         location.search = q.toString();
       };
 
-      if (empInput.value.trim()) {
-        await showForEmployee(scores, targets, empInput.value.trim(), monthSelect.value);
+      // Print current page
+      printBtn.addEventListener('click', () => {
+        window.print();
+      });
+
+      // Export CSV
+      exportCsvBtn.addEventListener('click', () => {
+        // Build filename from name & period
+        const name = document.getElementById('engineerName').textContent.replace(/\s+/g,'_') || 'engineer';
+        const period = monthSelect.value || (new Date().toISOString().slice(0,7));
+        const filename = `${name}_${period}_scorecard.csv`;
+        exportTableToCSV(filename);
+      });
+
+      // Export PDF (via print window)
+      exportPdfBtn.addEventListener('click', () => {
+        const periodLabel = monthSelect.options[monthSelect.selectedIndex]?.text || '';
+        exportTableToPDF(periodLabel);
+      });
+
+      // If URL contains id & period, auto-show
+      if (EMP_ID && URL_PERIOD) {
+        await showForEmployee(scores, targets, EMP_ID, URL_PERIOD);
+      } else if (EMP_ID) {
+        // if only id provided, but not period, pick current selection
+        await showForEmployee(scores, targets, EMP_ID, monthSelect.value);
       } else {
         setStatus('Select month and enter Employee ID to view data.');
       }
+
+      // allow pressing Enter on emp input to trigger apply
+      empInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') applyBtn.click();
+      });
+
     } catch (err) {
       setStatus('Error: ' + err.message, true);
       console.error(err);

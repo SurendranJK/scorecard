@@ -118,6 +118,15 @@
   .table-header .left .name { font-weight:700; color:#0b3b4a; font-size:15px; }
   .table-header .left .meta { color:#6b7b86; font-size:13px; }
 
+  /* Score Card title centered */
+  .card-title {
+    text-align:center;
+    font-weight:700;
+    color:var(--hpe-blue);
+    font-size:20px;
+    margin:12px 0 16px;
+  }
+
   table {
     width:100%;
     border-collapse:collapse;
@@ -184,6 +193,8 @@
 
 <main>
   <div class="card" role="region" aria-label="Score Card area">
+    <div class="card-title">Score Card</div>
+
     <div class="table-wrap">
       <div class="table-header">
         <div class="left">

@@ -67,29 +67,6 @@
   select,input{ padding:8px; border-radius:8px; border:1px solid #dfeff3; background:white; }
 
   button{ padding:8px 10px; border-radius:8px; border:0; background:var(--hpe-blue); color:white; cursor:pointer; }
-  button.small{ padding:6px 8px; font-size:13px; }
-
-  .export-wrap { position: relative; display:inline-block; }
-  .export-btn {
-    display:inline-flex; align-items:center; gap:8px;
-    border-radius:8px; padding:8px 10px; background: white; color: var(--muted);
-    border: 1px solid #dfeff3; cursor: pointer;
-  }
-  .export-btn:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
-  .export-btn:focus { outline: 3px solid rgba(0,115,157,0.12); }
-  .export-icon { width:14px; height:14px; display:inline-block; }
-
-  .export-menu {
-    position: absolute; right: 0; top: calc(100% + 8px); min-width: 160px;
-    background: #fff; border-radius: 8px; box-shadow: 0 10px 30px rgba(10,20,30,0.12);
-    border: 1px solid #eef6f9; padding:6px; display: none; z-index: 120;
-  }
-  .export-menu.show { display:block; }
-  .export-item {
-    display:block; width:100%; text-align:left; padding:10px 12px; background:transparent; border:0;
-    cursor:pointer; color:#0b3b4a; font-weight:600; border-radius:6px;
-  }
-  .export-item:hover, .export-item:focus { background: #f2fafb; outline: none; }
 
   main{
     max-width:900px;
@@ -114,10 +91,6 @@
 
   @keyframes fadeLift{ 0%{opacity:0;transform:translateY(16px);} 100%{opacity:1;transform:translateY(0);} }
 
-  .engineer-name{font-weight:700;color:#0b3b4a}
-  .engineer-id,.stack-rank{font-size:13px;color:#6b7b86;margin-top:4px}
-  .card-title{text-align:center;margin:10px 0 14px;font-size:20px;font-weight:700;color:var(--hpe-blue);}
-
   .table-wrap {
     border: 1px solid var(--table-outer);
     border-radius: 8px;
@@ -130,15 +103,14 @@
     border-bottom: 1px solid var(--table-border);
     display:flex;
     justify-content:space-between;
-    align-items:center;
+    align-items:flex-start;
     gap:12px;
     background:#ffffff;
   }
   .table-header .left {
     display:flex;
     flex-direction:column;
-    gap:6px;
-    min-width:0;
+    gap:4px;
   }
   .table-header .left .name { font-weight:700; color:#0b3b4a; font-size:15px; }
   .table-header .left .meta { color:#6b7b86; font-size:13px; }
@@ -172,7 +144,7 @@
   <div class="header-left">
     <div class="logo" aria-hidden="true">
       <!-- Inline HPE SVG -->
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" xmlns:v="https://vecta.io/nano" role="img" aria-label="HPE logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
       </svg>
@@ -209,12 +181,143 @@
         </thead>
         <tbody></tbody>
       </table>
+
+      <div id="missingTargets" style="display:none" class="no-data"></div>
+      <div id="missingData" style="display:none" class="no-data"></div>
     </div>
   </div>
 </main>
 
 <script>
-// Placeholder JS; you can keep your full working logic here
+(async function(){
+  const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
+  const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
+  const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
+
+  const PARAMETERS = [
+    "Onsite Response Met%",
+    "Overall SLA%",
+    "TOTAL CLOSED VOLUME",
+    "TTR Hours(Official)",
+    "100% DA",
+    "PPMD",
+    "PPMC",
+    "ECASE SLA_M2M",
+    "ECASE SLA_HG"
+  ];
+
+  const FALLBACK_TARGETS = {
+    "Onsite Response Met%": 0.90,
+    "Overall SLA%": 0.99,
+    "TTR Hours(Official)": 30,
+    "100% DA": 0.92,
+    "PPMD": 1.13,
+    "PPMC": 1.13,
+    "ECASE SLA_M2M": 0.97,
+    "ECASE SLA_HG": 0.95
+  };
+
+  const monthSelect = document.getElementById('monthSelect');
+  const empInput = document.getElementById('empInput');
+  const applyBtn = document.getElementById('apply');
+  const tbody = document.querySelector('#compareTable tbody');
+  const nameInTable = document.getElementById('engineerNameInTable');
+  const idInTable = document.getElementById('engineerIdInTable');
+  const monthInTable = document.getElementById('engineerMonthInTable');
+  const stackInTable = document.getElementById('engineerStackInTable');
+  const missingTargetsEl = document.getElementById('missingTargets');
+  const missingDataEl = document.getElementById('missingData');
+
+  const params = new URLSearchParams(window.location.search);
+  let EMP_ID = (params.get('id') || '').trim();
+  const URL_PERIOD = (params.get('period') || '').trim();
+  if (EMP_ID) empInput.value = EMP_ID;
+
+  function parseNumeric(v){
+    if (!v) return null;
+    const s = String(v).trim();
+    if (s === '-') return null;
+    if (s.includes('%')) return parseFloat(s)/100;
+    const n = parseFloat(s.replace(/,/g,''));
+    return isNaN(n)?null:n;
+  }
+
+  function lowerIsBetter(metric){ return /ttr|ppmd|ppmc/i.test(metric); }
+  function meetsTarget(metric, score, target){
+    if(score==null||target==null)return null;
+    return lowerIsBetter(metric)?(score<=target):(score>=target);
+  }
+
+  function formatDisplay(v,m=''){ if(v==null)return'--'; const p=/Onsite|SLA|DA|M2M|HG/i.test(m); return p?(v<=1?(v*100).toFixed(2):v.toFixed(2))+'%':v.toFixed(2); }
+
+  function findKey(o,names){const k=Object.keys(o||{});for(const n of names){const e=k.find(x=>x.trim().toLowerCase()===n.trim().toLowerCase());if(e)return e;}for(const n of names){const r=new RegExp(n.replace(/[%()]/g,'\\$&'),'i');const f=k.find(x=>r.test(x));if(f)return f;}return null;}
+
+  function normalize(rows){if(!rows||!rows.length)return[];const fk=Object.keys(rows[0]||{}).map(k=>String(k).trim());const t=fk.length===1||fk.every(k=>/^[\d\W]+$/.test(k)||k.length<4);if(t&&rows.length>1){const h=Object.values(rows[1]).map(v=>String(v||'').trim());const d=rows.slice(2);if(h.every(x=>x)){return d.map(r=>{const v=Object.values(r);const o={};h.forEach((hh,i)=>o[hh]=v[i]??'');return o;});}}return rows;}
+
+  async function fetchJson(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('Fail '+r.status);return r.json();}
+  async function loadAll(){
+    const [s,t]=await Promise.all([fetchJson(URL_SCORES).catch(()=>[]),fetchJson(URL_TARGETS).catch(()=>[])]);
+    return {scores:normalize(s||[]),targets:normalize(t||[])};
+  }
+
+  function computeRanks(rows,targets){
+    const out=rows.map(r=>{
+      let met=0,c=0;
+      PARAMETERS.forEach(m=>{
+        const k=findKey(r,[m]);const sN=parseNumeric(k?r[k]:null);const tN=parseNumeric(targets[m]);
+        if(tN==null)return;c++;if(meetsTarget(m,sN,tN))met++;
+      });
+      const sc=c?(met/c)*100:0;const v=findKey(r,['TOTAL CLOSED VOLUME']);const tot=parseNumeric(v?r[v]:0)||0;
+      const i=findKey(r,['Employee ID']);return{row:r,empId:r[i],score:sc,total:tot};
+    });
+    out.sort((a,b)=>b.score-a.score||b.total-a.total);
+    let p=null,rk=0;out.forEach((e,i)=>{if(p==null||e.score!==p)rk=i+1;e.rank=rk;p=e.score;});
+    return out;
+  }
+
+  async function showForEmployee(scores,targets,id,period){
+    tbody.innerHTML='';
+    const rows=scores.filter(r=>String(r.Period||r.period).trim()===period);
+    const emp=rows.find(r=>String(r["Employee ID"]||r.ID).trim()===id);
+    if(!emp){missingDataEl.style.display='block';missingDataEl.textContent='No data for this employee';return;}
+
+    const targetRow=targets.find(r=>String(r.Period||r.period).trim()===period);
+    const eff={};PARAMETERS.forEach(m=>{
+      const k=targetRow?findKey(targetRow,[m]):null;
+      eff[m]=k?targetRow[k]:(FALLBACK_TARGETS[m]??null);
+    });
+
+    const ranks=computeRanks(rows,eff);
+    const mine=ranks.find(e=>String(e.empId)===String(id));
+
+    nameInTable.textContent=emp["Engineer Name"]||emp.Name||'—';
+    idInTable.textContent='ID: '+id;
+    monthInTable.textContent='Month: '+period;
+    stackInTable.textContent='Stack Rank: '+(mine?mine.rank:'—');
+
+    PARAMETERS.forEach(m=>{
+      const sK=findKey(emp,[m]);const sV=parseNumeric(sK?emp[sK]:null);
+      const tV=parseNumeric(eff[m]);
+      const ok=meetsTarget(m,sV,tV);
+      const cls=ok==null?'':ok?'good':'bad';
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${m}</td><td>${formatDisplay(tV,m)}</td><td class="${cls}">${formatDisplay(sV,m)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function boot(){
+    const {scores,targets}=await loadAll();
+    const set=new Set(scores.map(r=>String(r.Period||r.period).trim()));
+    const arr=[...set].sort().reverse();
+    arr.forEach(p=>monthSelect.append(new Option(p,p)));
+    if(URL_PERIOD)monthSelect.value=URL_PERIOD;else if(arr.length)monthSelect.value=arr[0];
+    applyBtn.onclick=()=>{const e=empInput.value.trim(),p=monthSelect.value;if(!e)return alert('Enter ID');if(!p)return alert('Select Month');const q=new URLSearchParams({id:e,period:p});location.search=q.toString();};
+    if(empInput.value.trim())await showForEmployee(scores,targets,empInput.value.trim(),monthSelect.value);
+  }
+
+  await boot();
+})();
 </script>
 </body>
 </html>

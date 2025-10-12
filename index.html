@@ -22,14 +22,18 @@
     -webkit-font-smoothing:antialiased;
   }
 
+  /*
+    Header layout updated to grid so the brand (ASC Server Support)
+    is centered while logo stays left and controls stay right.
+  */
   header{
     position:fixed;
     top:0;
     left:0;
     right:0;
-    display:flex;
+    display:grid;
+    grid-template-columns: auto 1fr auto;
     align-items:center;
-    justify-content:space-between;
     padding:12px 20px;
     background:#fff;
     box-shadow:0 4px 16px rgba(0,0,0,0.05);
@@ -46,8 +50,12 @@
 
   .logo svg{ height:34px; width:auto; display:block; }
 
+  /* center brand */
   .brand{
+    text-align:center;
+    justify-self:center;
     line-height:1.2;
+    pointer-events:none; /* not interactive */
   }
   .brand .title{
     font-weight:700;
@@ -59,6 +67,7 @@
     display:flex;
     gap:8px;
     align-items:center;
+    justify-self:end;
   }
 
   select,input{
@@ -86,7 +95,7 @@
     font-size:13px;
   }
 
-  /* make export select look like Go button (text-only) */
+  /* make export select look like Go button (no icon) */
   .export-select {
     appearance: none;
     -webkit-appearance: none;
@@ -100,7 +109,6 @@
     font-family: inherit;
     font-size: 14px;
   }
-  /* small dropdown caret style removed (clean button look) */
   .export-select option { color: #333; }
 
   main{
@@ -146,6 +154,7 @@
     padding:8px 4px;
   }
 
+  /* Borders around inner & outer cells */
   table{
     width:100%;
     border-collapse:collapse;
@@ -178,10 +187,14 @@
 
   .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
 
+  @media (max-width:900px){
+    header{grid-template-columns: auto 1fr auto;}
+  }
   @media (max-width:800px){
     .controls{flex-wrap:wrap}
     .col-param{width:60%}
     .logo svg{height:28px}
+    .brand .title{font-size:16px}
   }
 </style>
 </head>
@@ -189,15 +202,16 @@
 <header>
   <div class="header-left">
     <div class="logo" aria-hidden="true">
-      <!-- I left the inline SVG here in case you want it in header; it doesn't affect Export control -->
+      <!-- inline SVG logo (kept left) -->
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
       </svg>
     </div>
-    <div class="brand">
-      <div class="title">ASC Server Support</div>
-    </div>
+  </div>
+
+  <div class="brand">
+    <div class="title">ASC Server Support</div>
   </div>
 
   <div class="controls">

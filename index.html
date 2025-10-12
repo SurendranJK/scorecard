@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -47,26 +48,38 @@
 
   .logo svg{ height:34px; width:auto; display:block; }
 
-  /* ✅ Center only "ASC Server Support" */
-  header { position: relative; }
-  .brand {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-  }
-  .brand .title{
-    font-weight:700;
-    color:var(--hpe-blue);
-    font-size:18px;
-  }
+  .brand{ line-height:1.2; }
+  .brand .title{ font-weight:700; color:var(--hpe-blue); font-size:18px; }
+  .brand .subtitle{ font-size:12px; color:#6b7b86; }
 
   .controls{ display:flex; gap:8px; align-items:center; }
 
   select,input{ padding:8px; border-radius:8px; border:1px solid #dfeff3; background:white; }
 
   button{ padding:8px 10px; border-radius:8px; border:0; background:var(--hpe-blue); color:white; cursor:pointer; }
+  button.small{ padding:6px 8px; font-size:13px; }
+
+  .export-wrap { position: relative; display:inline-block; }
+  .export-btn {
+    display:inline-flex; align-items:center; gap:8px;
+    border-radius:8px; padding:8px 10px; background: white; color: var(--muted);
+    border: 1px solid #dfeff3; cursor: pointer;
+  }
+  .export-btn:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+  .export-btn:focus { outline: 3px solid rgba(0,115,157,0.12); }
+  .export-icon { width:14px; height:14px; display:inline-block; }
+
+  .export-menu {
+    position: absolute; right: 0; top: calc(100% + 8px); min-width: 160px;
+    background: #fff; border-radius: 8px; box-shadow: 0 10px 30px rgba(10,20,30,0.12);
+    border: 1px solid #eef6f9; padding:6px; display: none; z-index: 120;
+  }
+  .export-menu.show { display:block; }
+  .export-item {
+    display:block; width:100%; text-align:left; padding:10px 12px; background:transparent; border:0;
+    cursor:pointer; color:#0b3b4a; font-weight:600; border-radius:6px;
+  }
+  .export-item:hover, .export-item:focus { background: #f2fafb; outline: none; }
 
   main{
     max-width:900px;
@@ -91,6 +104,11 @@
 
   @keyframes fadeLift{ 0%{opacity:0;transform:translateY(16px);} 100%{opacity:1;transform:translateY(0);} }
 
+  .engineer-name{font-weight:700;color:#0b3b4a}
+  .engineer-id,.stack-rank{font-size:13px;color:#6b7b86;margin-top:4px}
+  .card-title{text-align:center;margin:10px 0 14px;font-size:20px;font-weight:700;color:var(--hpe-blue);}
+
+  /* ---------- TABLE wrapper & header inside table area ---------- */
   .table-wrap {
     border: 1px solid var(--table-outer);
     border-radius: 8px;
@@ -98,23 +116,26 @@
     background: #fff;
   }
 
+  /* new table header (inside the same border) */
   .table-header {
     padding:12px 14px;
     border-bottom: 1px solid var(--table-border);
     display:flex;
     justify-content:space-between;
-    align-items:flex-start;
+    align-items:center;
     gap:12px;
     background:#ffffff;
   }
   .table-header .left {
     display:flex;
     flex-direction:column;
-    gap:4px;
+    gap:6px;
+    min-width:0;
   }
   .table-header .left .name { font-weight:700; color:#0b3b4a; font-size:15px; }
   .table-header .left .meta { color:#6b7b86; font-size:13px; }
 
+  /* keep the table itself with inner borders; header row below the table-header */
   table{ width:100%; border-collapse:collapse; margin:0; }
   thead th{
     background:var(--hpe-blue); color:#fff; padding:12px; text-align:left;
@@ -144,7 +165,7 @@
   <div class="header-left">
     <div class="logo" aria-hidden="true">
       <!-- Inline HPE SVG -->
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" role="img" aria-label="HPE logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" xmlns:v="https://vecta.io/nano" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
       </svg>
@@ -160,27 +181,51 @@
     <label for="empInput">Employee ID</label>
     <input id="empInput" placeholder=" " />
     <button id="apply">Go</button>
+
+    <div class="export-wrap" id="exportWrap">
+      <button id="exportToggle" class="export-btn" aria-haspopup="true" aria-expanded="false" aria-controls="exportMenu">
+        <svg class="export-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+          <path d="M12 16l-6-6h12z" fill="currentColor"></path>
+        </svg>
+        Export
+      </button>
+
+      <div id="exportMenu" class="export-menu" role="menu" aria-labelledby="exportToggle">
+        <button class="export-item" role="menuitem" id="exportCsvBtn">Export CSV</button>
+        <button class="export-item" role="menuitem" id="exportPdfBtn">Export PDF</button>
+        <button class="export-item" role="menuitem" id="printBtn">Print</button>
+      </div>
+    </div>
   </div>
 </header>
 
 <main>
-  <div class="card">
-    <div class="table-wrap">
-      <div class="table-header">
-        <div class="left">
-          <div id="engineerNameInTable" class="name">—</div>
-          <div id="engineerIdInTable" class="meta">ID: —</div>
-          <div id="engineerMonthInTable" class="meta">Month: —</div>
-          <div id="engineerStackInTable" class="meta">Stack Rank: —</div>
-        </div>
-      </div>
+  <div class="card" role="region" aria-label="Score Card">
+    <div class="card-title">Score Card</div>
 
-      <table id="compareTable">
-        <thead>
-          <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div id="content">
+      <!-- table-wrap contains the in-table header and the actual table -->
+      <div class="table-wrap" role="presentation">
+        <!-- In-table header (now inside the same border) -->
+        <div class="table-header">
+          <div class="left">
+            <div id="engineerNameInTable" class="name">—</div>
+            <div id="engineerIdInTable" class="meta">ID: —</div>
+            <div id="engineerMonthInTable" class="meta">Month: —</div>
+            <div id="engineerStackInTable" class="meta">Stack Rank: —</div>
+          </div>
+          <div class="right" aria-hidden="true">
+            <!-- reserved area if you want to show avatar / small card actions -->
+          </div>
+        </div>
+
+        <table id="compareTable" aria-label="Parameters comparison">
+          <thead>
+            <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
 
       <div id="missingTargets" style="display:none" class="no-data"></div>
       <div id="missingData" style="display:none" class="no-data"></div>
@@ -190,6 +235,7 @@
 
 <script>
 (async function(){
+  // --- Sheet config ---
   const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
@@ -217,103 +263,436 @@
     "ECASE SLA_HG": 0.95
   };
 
+  // DOM refs
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
   const applyBtn = document.getElementById('apply');
   const tbody = document.querySelector('#compareTable tbody');
-  const nameInTable = document.getElementById('engineerNameInTable');
-  const idInTable = document.getElementById('engineerIdInTable');
-  const monthInTable = document.getElementById('engineerMonthInTable');
-  const stackInTable = document.getElementById('engineerStackInTable');
   const missingTargetsEl = document.getElementById('missingTargets');
   const missingDataEl = document.getElementById('missingData');
+
+  const engineerNameInTable = document.getElementById('engineerNameInTable');
+  const engineerIdInTable = document.getElementById('engineerIdInTable');
+  const engineerMonthInTable = document.getElementById('engineerMonthInTable');
+  const engineerStackInTable = document.getElementById('engineerStackInTable');
+
+  const exportWrap = document.getElementById('exportWrap');
+  const exportToggle = document.getElementById('exportToggle');
+  const exportMenu = document.getElementById('exportMenu');
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  const exportPdfBtn = document.getElementById('exportPdfBtn');
+  const printBtn = document.getElementById('printBtn');
 
   const params = new URLSearchParams(window.location.search);
   let EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
   if (EMP_ID) empInput.value = EMP_ID;
 
+  function setStatus(msg, isError=false){ console.log('Status:', msg); }
+
+  async function fetchJson(url){
+    const r = await fetch(url, {cache:'no-store'});
+    if (!r.ok) throw new Error('Failed to fetch ' + url + ' (' + r.status + ')');
+    return r.json();
+  }
+
+  function normalize(rows){
+    if (!rows || !rows.length) return [];
+    const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
+    const looksLikeTitle = firstKeys.length === 1 || firstKeys.every(k => /^[\d\W]+$/.test(k) || k.length < 4);
+    if (looksLikeTitle && rows.length > 1) {
+      const headers = Object.values(rows[1]).map(v => String(v||'').trim());
+      const dataRows = rows.slice(2);
+      if (headers.every(h => h)) {
+        return dataRows.map(r => {
+          const vals = Object.values(r);
+          const obj = {};
+          headers.forEach((h,i)=> obj[h] = vals[i] ?? '');
+          return obj;
+        });
+      }
+    }
+    return rows;
+  }
+
   function parseNumeric(v){
-    if (!v) return null;
+    if (v == null || v === '') return null;
     const s = String(v).trim();
     if (s === '-') return null;
-    if (s.includes('%')) return parseFloat(s)/100;
+    if (s.includes('%')) {
+      const n = parseFloat(s.replace('%','').replace(/,/g,''));
+      return isNaN(n) ? null : n/100;
+    }
     const n = parseFloat(s.replace(/,/g,''));
-    return isNaN(n)?null:n;
+    if (isNaN(n)) return null;
+    return n;
+  }
+
+  function formatDisplay(val, metric = '') {
+    if (val == null) return '--';
+    const isPercentMetric = /Onsite Response Met%|Overall SLA%|100% DA|ECASE SLA_M2M|ECASE SLA_HG/i.test(metric);
+    if (typeof val === 'number') {
+      if (isPercentMetric) return (val <= 1 ? (val * 100).toFixed(2) : val.toFixed(2)) + '%';
+      return val.toFixed(2);
+    }
+    const n = parseNumeric(val);
+    if (n == null) return String(val);
+    if (isPercentMetric) return (n <= 1 ? (n * 100).toFixed(2) : n.toFixed(2)) + '%';
+    return n.toFixed(2);
+  }
+
+  function findKey(obj, names){
+    const keys = Object.keys(obj||{});
+    for (const n of names){
+      const exact = keys.find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
+      if (exact) return exact;
+    }
+    for (const n of names){
+      const re = new RegExp(n.replace(/[%()]/g,'\\$&'),'i');
+      const found = keys.find(k => re.test(k));
+      if (found) return found;
+    }
+    return null;
   }
 
   function lowerIsBetter(metric){ return /ttr|ppmd|ppmc/i.test(metric); }
-  function meetsTarget(metric, score, target){
-    if(score==null||target==null)return null;
-    return lowerIsBetter(metric)?(score<=target):(score>=target);
+
+  function meetsTarget(metric, scoreVal, targetVal){
+    if (scoreVal == null || targetVal == null) return null;
+    return lowerIsBetter(metric) ? (scoreVal <= targetVal) : (scoreVal >= targetVal);
   }
 
-  function formatDisplay(v,m=''){ if(v==null)return'--'; const p=/Onsite|SLA|DA|M2M|HG/i.test(m); return p?(v<=1?(v*100).toFixed(2):v.toFixed(2))+'%':v.toFixed(2); }
-
-  function findKey(o,names){const k=Object.keys(o||{});for(const n of names){const e=k.find(x=>x.trim().toLowerCase()===n.trim().toLowerCase());if(e)return e;}for(const n of names){const r=new RegExp(n.replace(/[%()]/g,'\\$&'),'i');const f=k.find(x=>r.test(x));if(f)return f;}return null;}
-
-  function normalize(rows){if(!rows||!rows.length)return[];const fk=Object.keys(rows[0]||{}).map(k=>String(k).trim());const t=fk.length===1||fk.every(k=>/^[\d\W]+$/.test(k)||k.length<4);if(t&&rows.length>1){const h=Object.values(rows[1]).map(v=>String(v||'').trim());const d=rows.slice(2);if(h.every(x=>x)){return d.map(r=>{const v=Object.values(r);const o={};h.forEach((hh,i)=>o[hh]=v[i]??'');return o;});}}return rows;}
-
-  async function fetchJson(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('Fail '+r.status);return r.json();}
-  async function loadAll(){
-    const [s,t]=await Promise.all([fetchJson(URL_SCORES).catch(()=>[]),fetchJson(URL_TARGETS).catch(()=>[])]);
-    return {scores:normalize(s||[]),targets:normalize(t||[])};
+  function computeAverageTotalClosed(rowsForPeriod) {
+    const key = rowsForPeriod.length ? findKey(rowsForPeriod[0], ['TOTAL CLOSED VOLUME','Total Closed Volume','TotalClosedVolume']) : null;
+    if (!key) return null;
+    let sum = 0, count = 0;
+    rowsForPeriod.forEach(r => {
+      const v = parseNumeric(r[key]);
+      if (v != null) { sum += v; count++; }
+    });
+    return count ? (sum / count) : null;
   }
 
-  function computeRanks(rows,targets){
-    const out=rows.map(r=>{
-      let met=0,c=0;
-      PARAMETERS.forEach(m=>{
-        const k=findKey(r,[m]);const sN=parseNumeric(k?r[k]:null);const tN=parseNumeric(targets[m]);
-        if(tN==null)return;c++;if(meetsTarget(m,sN,tN))met++;
+  function computeRanks(rowsForPeriod, effectiveTargets){
+    const entries = rowsForPeriod.map(r => {
+      let met = 0, considered = 0;
+      PARAMETERS.forEach(metric => {
+        const k = findKey(r, [metric]);
+        const scoreRaw = k ? r[k] : null;
+        const scoreNum = parseNumeric(scoreRaw);
+        const tgtRaw = effectiveTargets[metric];
+        const tgtNum = (tgtRaw !== undefined && tgtRaw !== null) ? parseNumeric(tgtRaw) : null;
+        if (tgtNum === null) return;
+        considered++;
+        const ok = meetsTarget(metric, scoreNum, tgtNum);
+        if (ok === true) met++;
       });
-      const sc=c?(met/c)*100:0;const v=findKey(r,['TOTAL CLOSED VOLUME']);const tot=parseNumeric(v?r[v]:0)||0;
-      const i=findKey(r,['Employee ID']);return{row:r,empId:r[i],score:sc,total:tot};
+      const scorePercent = considered ? (met / considered) * 100 : 0;
+      const totalClosedKey = findKey(r, ['TOTAL CLOSED VOLUME','Total Closed Volume','TOTAL CLOSED VOLUME']);
+      const totalClosed = totalClosedKey ? (parseNumeric(r[totalClosedKey]) || 0) : 0;
+      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+      const empIdVal = idKey ? String(r[idKey]||'').trim() : '';
+      return {row: r, empId: empIdVal, met, considered, scorePercent, totalClosed};
     });
-    out.sort((a,b)=>b.score-a.score||b.total-a.total);
-    let p=null,rk=0;out.forEach((e,i)=>{if(p==null||e.score!==p)rk=i+1;e.rank=rk;p=e.score;});
-    return out;
+
+    entries.sort((a,b) => {
+      if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
+      return b.totalClosed - a.totalClosed;
+    });
+
+    let prev = null, rank = 0;
+    entries.forEach((e,i) => {
+      if (prev === null || e.scorePercent !== prev) rank = i+1;
+      e.rank = rank;
+      prev = e.scorePercent;
+    });
+    return entries;
   }
 
-  async function showForEmployee(scores,targets,id,period){
-    tbody.innerHTML='';
-    const rows=scores.filter(r=>String(r.Period||r.period).trim()===period);
-    const emp=rows.find(r=>String(r["Employee ID"]||r.ID).trim()===id);
-    if(!emp){missingDataEl.style.display='block';missingDataEl.textContent='No data for this employee';return;}
+  async function loadAll(){
+    setStatus('Loading scores & targets...');
+    missingTargetsEl.style.display = 'none';
+    missingDataEl.style.display = 'none';
+    try {
+      const [rawScores, rawTargets] = await Promise.all([
+        fetchJson(URL_SCORES).catch(()=>[]),
+        fetchJson(URL_TARGETS).catch(()=>[])
+      ]);
+      const scores = normalize(rawScores || []);
+      const targets = normalize(rawTargets || []);
+      if (!scores.length) {
+        setStatus('No data found in scores sheet', true);
+        missingDataEl.style.display = 'block';
+        missingDataEl.innerHTML = '<div class="no-data">No rows in scores sheet. Ensure the tab is named <strong>scores</strong> and published.</div>';
+        return {scores:[], targets:[]};
+      }
+      setStatus(`Loaded ${scores.length} score rows`);
+      return {scores, targets};
+    } catch (err) {
+      setStatus('Error loading sheets: ' + err.message, true);
+      throw err;
+    }
+  }
 
-    const targetRow=targets.find(r=>String(r.Period||r.period).trim()===period);
-    const eff={};PARAMETERS.forEach(m=>{
-      const k=targetRow?findKey(targetRow,[m]):null;
-      eff[m]=k?targetRow[k]:(FALLBACK_TARGETS[m]??null);
+  async function showForEmployee(allScores, allTargets, empId, period){
+    setStatus('Preparing view...');
+    tbody.innerHTML = '';
+    missingTargetsEl.style.display = 'none';
+    missingDataEl.style.display = 'none';
+
+    const rowsForPeriod = allScores.filter(r => {
+      const pkey = findKey(r, ['Period','period']);
+      return pkey && String(r[pkey]||'').trim() === String(period).trim();
     });
 
-    const ranks=computeRanks(rows,eff);
-    const mine=ranks.find(e=>String(e.empId)===String(id));
+    const empRow = rowsForPeriod.find(r => {
+      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+      return idKey && String(r[idKey]||'').trim() === String(empId).trim();
+    });
 
-    nameInTable.textContent=emp["Engineer Name"]||emp.Name||'—';
-    idInTable.textContent='ID: '+id;
-    monthInTable.textContent='Month: '+period;
-    stackInTable.textContent='Stack Rank: '+(mine?mine.rank:'—');
+    if (!empRow) {
+      setStatus(`No data found for Employee ${empId} in ${period}`, true);
+      missingDataEl.style.display = 'block';
+      missingDataEl.innerHTML = `<div class="no-data">No row found for employee <strong>${empId}</strong> in <strong>${period}</strong>.</div>`;
+      // clear header inside table
+      engineerNameInTable.textContent = '—';
+      engineerIdInTable.textContent = 'ID: —';
+      engineerMonthInTable.textContent = 'Month: —';
+      engineerStackInTable.textContent = 'Stack Rank: —';
+      return;
+    }
 
-    PARAMETERS.forEach(m=>{
-      const sK=findKey(emp,[m]);const sV=parseNumeric(sK?emp[sK]:null);
-      const tV=parseNumeric(eff[m]);
-      const ok=meetsTarget(m,sV,tV);
-      const cls=ok==null?'':ok?'good':'bad';
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${m}</td><td>${formatDisplay(tV,m)}</td><td class="${cls}">${formatDisplay(sV,m)}</td>`;
+    let targetRowForPeriod = allTargets.find(r => {
+      const pKey = findKey(r, ['Period','period']);
+      return pKey && String(r[pKey]||'').trim() === String(period).trim();
+    });
+
+    const avgTotalClosed = computeAverageTotalClosed(rowsForPeriod);
+    const effectiveTargets = {};
+    PARAMETERS.forEach(metric => {
+      if (targetRowForPeriod) {
+        const k = findKey(targetRowForPeriod, [metric]);
+        if (k) { effectiveTargets[metric] = targetRowForPeriod[k]; return; }
+      }
+      if (metric === 'TOTAL CLOSED VOLUME') {
+        effectiveTargets[metric] = avgTotalClosed != null ? avgTotalClosed : null;
+        return;
+      }
+      if (FALLBACK_TARGETS[metric] !== undefined) { effectiveTargets[metric] = FALLBACK_TARGETS[metric]; return; }
+      effectiveTargets[metric] = null;
+    });
+
+    const rankingEntries = computeRanks(rowsForPeriod, effectiveTargets);
+    const myEntry = rankingEntries.find(e => String(e.empId) === String(empId));
+
+    // populate in-table header
+    const nameKey = findKey(empRow, ['Engineer Name','Name','Engineer']);
+    const idKey = findKey(empRow, ['Employee ID','EmpID','EmployeeID','ID']);
+    engineerNameInTable.textContent = nameKey ? (empRow[nameKey] || '—') : '—';
+    engineerIdInTable.textContent = 'ID: ' + (idKey ? (empRow[idKey] || '—') : empId);
+
+    // month label: use the user-readable label from the select (if available) else fallback to period string
+    const monthLabel = (monthSelect.options[monthSelect.selectedIndex] && monthSelect.options[monthSelect.selectedIndex].text) ? monthSelect.options[monthSelect.selectedIndex].text : (period || '');
+    engineerMonthInTable.textContent = 'Month: ' + (monthLabel || '--');
+
+    engineerStackInTable.textContent = myEntry ? ('Stack Rank: ' + myEntry.rank) : 'Stack Rank: —';
+
+    // populate table rows
+    tbody.innerHTML = '';
+    PARAMETERS.forEach(metric => {
+      const targetRaw = effectiveTargets[metric];
+      const targetNum = targetRaw != null ? parseNumeric(targetRaw) : null;
+      const scoreKey = findKey(empRow, [metric]);
+      const scoreRaw = scoreKey ? empRow[scoreKey] : null;
+      const scoreNum = parseNumeric(scoreRaw);
+      const met = (targetNum != null && scoreNum != null) ? meetsTarget(metric, scoreNum, targetNum) : null;
+      const scoreClass = met === null ? '' : (met ? 'good' : 'bad');
+
+      const targetDisplay = (targetNum != null) ? formatDisplay(targetNum, metric) : '--';
+      const scoreDisplay = (scoreNum != null) ? formatDisplay(scoreNum, metric) : (scoreRaw ? String(scoreRaw) : '--');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="col-param">${metric}</td>
+                      <td class="col-target">${targetDisplay}</td>
+                      <td class="col-score"><span class="${scoreClass}">${scoreDisplay}</span></td>`;
       tbody.appendChild(tr);
     });
+
+    setStatus(`Prepared view for ${engineerNameInTable.textContent} — ${period}`);
   }
 
+  // ---------- Export helpers ----------
+  function csvEscape(value) {
+    if (value == null) return '';
+    const s = String(value).replace(/\r?\n/g, ' ');
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function exportTableToCSV(filename = 'scorecard.csv') {
+    const rows = [];
+    const headerCells = Array.from(document.querySelectorAll('#compareTable thead th')).map(th => th.textContent.trim());
+    rows.push(headerCells.map(csvEscape).join(','));
+    const trs = Array.from(document.querySelectorAll('#compareTable tbody tr'));
+    trs.forEach(tr => {
+      const cols = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
+      rows.push(cols.map(csvEscape).join(','));
+    });
+    const csv = rows.join('\n');
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportTableToPDF(periodLabel = '') {
+    const title = document.querySelector('.card-title')?.textContent || 'Score Card';
+    const name = document.getElementById('engineerNameInTable')?.textContent || '';
+    const id = document.getElementById('engineerIdInTable')?.textContent || '';
+    const rank = document.getElementById('engineerStackInTable')?.textContent || '';
+    const tableHtml = document.getElementById('compareTable').outerHTML;
+
+    const style = `
+      <style>
+        body{font-family:Inter,Arial,Helvetica,sans-serif;color:#263238;margin:20px;}
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+        .title{font-size:20px;font-weight:700;color:${getComputedStyle(document.documentElement).getPropertyValue('--hpe-blue') || '#00739D'};}
+        table{width:100%;border-collapse:collapse;margin-top:8px;}
+        thead th{background:${getComputedStyle(document.documentElement).getPropertyValue('--hpe-blue') || '#00739D'};color:#fff;padding:8px;text-align:left;}
+        td,th{padding:8px;border:1px solid #e6eef3;}
+      </style>`;
+
+    const html = `
+      <!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${style}</head><body>
+      <div class="header">
+        <div>
+          <div class="title">${title}${periodLabel ? ' — ' + periodLabel : ''}</div>
+          <div>${name} ${id ? ' | ' + id : ''} ${rank ? ' | ' + rank : ''}</div>
+        </div>
+      </div>
+      ${tableHtml}
+      </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) { alert('Popup blocked. Please allow popups for this site to export PDF.'); return; }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { try { win.print(); } catch (e) { console.error(e); } }, 600);
+  }
+
+  // ---------- Export menu behavior ----------
+  function openExportMenu() {
+    exportMenu.classList.add('show');
+    exportToggle.setAttribute('aria-expanded','true');
+    const first = exportMenu.querySelector('.export-item');
+    if (first) first.focus();
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+  }
+  function closeExportMenu() {
+    exportMenu.classList.remove('show');
+    exportToggle.setAttribute('aria-expanded','false');
+    document.removeEventListener('click', onDocClick);
+    document.removeEventListener('keydown', onKeyDown);
+    exportToggle.focus();
+  }
+  function onDocClick(e) { if (!exportWrap.contains(e.target)) closeExportMenu(); }
+  function onKeyDown(e) { if (e.key === 'Escape') closeExportMenu(); }
+
+  // ---------- Wiring ----------
   async function boot(){
-    const {scores,targets}=await loadAll();
-    const set=new Set(scores.map(r=>String(r.Period||r.period).trim()));
-    const arr=[...set].sort().reverse();
-    arr.forEach(p=>monthSelect.append(new Option(p,p)));
-    if(URL_PERIOD)monthSelect.value=URL_PERIOD;else if(arr.length)monthSelect.value=arr[0];
-    applyBtn.onclick=()=>{const e=empInput.value.trim(),p=monthSelect.value;if(!e)return alert('Enter ID');if(!p)return alert('Select Month');const q=new URLSearchParams({id:e,period:p});location.search=q.toString();};
-    if(empInput.value.trim())await showForEmployee(scores,targets,empInput.value.trim(),monthSelect.value);
+    try {
+      const {scores, targets} = await loadAll();
+      const periodSet = new Set();
+      scores.forEach(r => {
+        const pk = findKey(r, ['Period','period']);
+        if (pk) { const v = String(r[pk]||'').trim(); if (v) periodSet.add(v); }
+      });
+      const periods = Array.from(periodSet).sort().reverse();
+      monthSelect.innerHTML = '';
+      monthSelect.appendChild(new Option('Latest',''));
+      periods.forEach(p => {
+        const [y,m] = p.split('-');
+        let label = p;
+        if (y && m && m.length) {
+          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'short', year:'numeric'}); } catch(e){}
+        }
+        monthSelect.appendChild(new Option(label,p));
+      });
+
+      if (URL_PERIOD) monthSelect.value = URL_PERIOD;
+      if (!monthSelect.value && periods.length) monthSelect.value = periods[0];
+
+      applyBtn.onclick = () => {
+        const emp = empInput.value.trim();
+        const per = monthSelect.value;
+        if (!emp) return alert('Enter Employee ID');
+        if (!per) return alert('Select Month');
+        const q = new URLSearchParams();
+        q.set('id', emp); q.set('period', per);
+        location.search = q.toString();
+      };
+
+      // export toggle open/close
+      exportToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (exportMenu.classList.contains('show')) closeExportMenu(); else openExportMenu();
+      });
+      exportToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openExportMenu(); }
+      });
+
+      exportCsvBtn.addEventListener('click', () => {
+        const name = document.getElementById('engineerNameInTable').textContent.replace(/\s+/g,'_') || 'engineer';
+        const period = monthSelect.value || (new Date().toISOString().slice(0,7));
+        exportTableToCSV(`${name}_${period}_scorecard.csv`);
+        closeExportMenu();
+      });
+      exportPdfBtn.addEventListener('click', () => {
+        const periodLabel = monthSelect.options[monthSelect.selectedIndex]?.text || '';
+        exportTableToPDF(periodLabel);
+        closeExportMenu();
+      });
+      printBtn.addEventListener('click', () => { window.print(); closeExportMenu(); });
+
+      exportMenu.addEventListener('focusout', (e) => {
+        setTimeout(() => {
+          const active = document.activeElement;
+          if (!exportWrap.contains(active)) closeExportMenu();
+        }, 10);
+      });
+
+      // handle change of month selection for display update even before Apply
+      monthSelect.addEventListener('change', () => {
+        const label = monthSelect.options[monthSelect.selectedIndex]?.text || '--';
+        // update Month cell only (won't change employeeised content until showForEmployee runs)
+        engineerMonthInTable.textContent = 'Month: ' + label;
+      });
+
+      // initial load of employee view if id+period present in URL (or id only)
+      if (EMP_ID && URL_PERIOD) {
+        await showForEmployee(scores, targets, EMP_ID, URL_PERIOD);
+      } else if (EMP_ID) {
+        await showForEmployee(scores, targets, EMP_ID, monthSelect.value);
+      } else {
+        setStatus('Select month and enter Employee ID to view data.');
+      }
+
+      empInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') applyBtn.click(); });
+
+    } catch (err) {
+      setStatus('Error: ' + err.message, true);
+      console.error(err);
+    }
   }
 
   await boot();

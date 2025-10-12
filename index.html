@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>ASC Server Support</title>
+<title>HPE ScoreCard — All Metrics Included</title>
 <style>
   :root{
     --hpe-blue:#00739D;
     --muted:#5f6f76;
     --bg:#f4f7f8;
     --card-bg:#fff;
+    --hpe-green: #00a884; /* HPE green-ish used for E lower bar; adjust to exact brand green if you have it */
   }
 
   /* page */
@@ -37,24 +38,14 @@
     gap:12px;
   }
 
-  .header-left { display:flex; align-items:center; width:160px; flex-shrink:0; }
+  .header-left { display:flex; align-items:center; width:220px; flex-shrink:0; padding-left:6px;}
   .logo {
     display:flex;
     align-items:center;
     justify-content:flex-start;
     gap:10px;
   }
-  .logo img {
-    height:34px;
-    width:auto;
-    display:block;
-    object-fit:contain;
-  }
-  .logo .placeholder {
-    font-size:14px;
-    color:#6b7b86;
-    font-weight:700;
-  }
+  .logo svg { height:34px; width:auto; display:block; }
 
   .brand {
     text-align:center;
@@ -139,11 +130,10 @@
   .good{color:#0b7a3a;font-weight:700}
   .bad{color:#a12b2b;font-weight:700}
   .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
-  .avg-note{margin-top:10px;font-size:13px;color:#4d6a6f}
 
   @media (max-width:1000px){
     .controls{width:300px}
-    .header-left{width:120px}
+    .header-left{width:140px}
   }
   @media (max-width:900px){
     header{padding:10px 12px}
@@ -163,36 +153,52 @@
     .controls{order:2; width:100%; justify-content:center; flex-wrap:wrap; gap:8px}
     .controls label{display:none}
     .col-param{width:60%}
-    .logo img{height:28px}
+    .logo svg{height:28px}
   }
 </style>
 </head>
 <body>
 <header>
-  <!-- left: logo -->
+  <!-- left: inline HPE-like SVG logo -->
   <div class="header-left">
-    <div class="logo" id="logoContainer">
-      <!-- image will be injected by JS; fallback placeholder shown -->
-      <img id="headerLogo" src="" alt="Logo" style="display:none"/>
-      <div id="logoPlaceholder" class="placeholder">HPE</div>
+    <div class="logo" aria-hidden="true">
+      <!-- Inline SVG: "HP" in black and the "E" where lower bar is HPE green -->
+      <svg viewBox="0 0 260 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="HPE logo">
+        <!-- HP letters -->
+        <g transform="translate(4,6)">
+          <!-- H -->
+          <rect x="0" y="0" width="12" height="52" fill="#111"/>
+          <rect x="36" y="0" width="12" height="52" fill="#111"/>
+          <rect x="0" y="22" width="48" height="10" fill="#111"/>
+          <!-- P -->
+          <rect x="72" y="0" width="12" height="52" fill="#111"/>
+          <path d="M88 0 h32 a18 18 0 0 1 0 36 h-32 z" fill="#111"/>
+          <!-- E: draw outline bars (top and middle) black, lower bar green -->
+          <!-- top short black bar -->
+          <rect x="152" y="0" width="48" height="8" fill="#111"/>
+          <!-- middle black bar -->
+          <rect x="152" y="22" width="48" height="8" fill="#111"/>
+          <!-- lower green bar (HPE green) -->
+          <rect x="152" y="44" width="48" height="8" fill="var(--hpe-green)"/>
+          <!-- thin gap left to emulate E styling -->
+        </g>
+      </svg>
     </div>
   </div>
 
   <!-- center: title -->
-  <div class="brand">
+  <div class="brand" aria-hidden="false">
     <div class="title">ScoreCard</div>
     <div class="subtitle">HPE — All metrics included for Stack Rank</div>
   </div>
 
   <!-- right: controls -->
-  <div class="controls">
-    <label>Month</label>
+  <div class="controls" role="region" aria-label="controls">
+    <label for="monthSelect">Month</label>
     <select id="monthSelect"></select>
-    <label>Employee ID</label>
+    <label for="empInput">Employee ID</label>
     <input id="empInput" placeholder="eg 60154741" />
     <button id="apply">Apply</button>
-    <button id="refresh" class="small">Refresh</button>
-    <button id="print" class="small">Print</button>
   </div>
 </header>
 
@@ -227,43 +233,7 @@
 
 <script>
 (async function(){
-  // You can set logo via URL param: ?logo=https://.../hpe.png
-  const params = new URLSearchParams(window.location.search);
-  const LOGO_URL_FROM_QUERY = params.get('logo') || '';
-  const LOCAL_LOGO_FILENAME = 'logo.png'; // put a file named logo.png next to this HTML to use by default
-
-  const logoImgEl = document.getElementById('headerLogo');
-  const logoPlaceholder = document.getElementById('logoPlaceholder');
-
-  // try query param first, then local file, else keep placeholder
-  async function trySetLogo() {
-    if (LOGO_URL_FROM_QUERY) {
-      logoImgEl.src = LOGO_URL_FROM_QUERY;
-      logoImgEl.style.display = 'block';
-      logoPlaceholder.style.display = 'none';
-      return;
-    }
-
-    // test if local logo exists by trying to fetch it
-    try {
-      const r = await fetch(LOCAL_LOGO_FILENAME, {method:'HEAD'});
-      if (r.ok) {
-        logoImgEl.src = LOCAL_LOGO_FILENAME;
-        logoImgEl.style.display = 'block';
-        logoPlaceholder.style.display = 'none';
-        return;
-      }
-    } catch(e) {
-      // ignore errors — keep placeholder
-    }
-    // no logo found -> keep placeholder text
-    logoImgEl.style.display = 'none';
-    logoPlaceholder.style.display = 'block';
-  }
-
-  await trySetLogo();
-
-  // ---------- Existing app code below ----------
+  /* --- Sheet config --- */
   const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
@@ -291,10 +261,10 @@
     "ECASE SLA_HG": 0.95
   };
 
+  /* --- DOM refs --- */
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
   const applyBtn = document.getElementById('apply');
-  const statusEl = document.getElementById('status');
   const engineerNameEl = document.getElementById('engineerName');
   const engineerIdEl = document.getElementById('engineerId');
   const stackRankEl = document.getElementById('stackRank');
@@ -302,12 +272,13 @@
   const missingTargetsEl = document.getElementById('missingTargets');
   const missingDataEl = document.getElementById('missingData');
 
+  const params = new URLSearchParams(window.location.search);
   let EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
   if (EMP_ID) empInput.value = EMP_ID;
 
   function setStatus(msg, isError=false){
-    // intentionally no visual status now; use console for debugging
+    // intentionally no visible status; console is used for debug
     console.log('Status:', msg);
   }
 

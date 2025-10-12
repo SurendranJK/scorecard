@@ -10,7 +10,7 @@
     --muted:#5f6f76;
     --bg:#f4f7f8;
     --card-bg:#fff;
-    --hpe-green: #00a884; /* HPE green-ish used for E lower bar; adjust to exact brand green if you have it */
+    --hpe-green: #00a884;
   }
 
   /* page */
@@ -23,7 +23,7 @@
     -moz-osx-font-smoothing:grayscale;
   }
 
-  /* header layout: left=logo, center=brand, right=controls */
+  /* header layout: left=logo+brand, center spacer, right=controls */
   header{
     position:fixed;
     top:0;
@@ -36,41 +36,47 @@
     box-shadow:0 4px 16px rgba(0,0,0,0.05);
     z-index:30;
     gap:12px;
+    box-sizing:border-box;
   }
 
-  .header-left { display:flex; align-items:center; width:220px; flex-shrink:0; padding-left:6px;}
-  .logo {
+  .header-left {
     display:flex;
     align-items:center;
-    justify-content:flex-start;
-    gap:10px;
+    gap:12px;
+    flex:0 0 auto;
   }
-  .logo svg { height:34px; width:auto; display:block; }
+
+  .logo img {
+    height:34px;
+    width:auto;
+    display:block;
+    object-fit:contain;
+  }
 
   .brand {
-    text-align:center;
-    flex:1;
+    text-align:left;
     min-width:0;
   }
   .brand .title{
     font-weight:700;
     color:var(--hpe-blue);
-    font-size:20px;
+    font-size:18px;
     margin-bottom:2px;
   }
   .brand .subtitle{
-    font-size:13px;
+    font-size:12px;
     color:#6b7b86;
     margin-top:2px;
   }
+
+  .header-spacer { flex:1 } /* keeps controls to the right */
 
   .controls{
     display:flex;
     gap:10px;
     align-items:center;
     justify-content:flex-end;
-    width:360px;
-    flex-shrink:0;
+    flex:0 0 420px;
   }
 
   select,input{padding:8px;border-radius:8px;border:1px solid #dfeff3;background:white}
@@ -80,7 +86,7 @@
   main{
     max-width: 900px;
     margin: 0 auto;
-    padding: 28px;
+    padding: 28px 20px;
     min-height: calc(100vh - 92px); /* header height approx 92px */
     display: flex;
     justify-content: center;
@@ -131,17 +137,17 @@
   .bad{color:#a12b2b;font-weight:700}
   .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
 
-  @media (max-width:1000px){
-    .controls{width:300px}
-    .header-left{width:140px}
+  @media (max-width:1100px){
+    .controls{flex:0 0 320px}
   }
   @media (max-width:900px){
     header{padding:10px 12px}
     main{padding:18px}
     .card{padding:16px}
+    .brand .title{font-size:16px}
   }
 
-  /* mobile: stack brand above controls and center, logo small */
+  /* mobile: stack header elements */
   @media (max-width:600px){
     header{
       flex-direction:column;
@@ -149,48 +155,30 @@
       gap:6px;
     }
     .header-left{order:0;width:auto}
-    .brand{order:1; width:100%}
+    .brand{order:1; width:100%; text-align:center}
     .controls{order:2; width:100%; justify-content:center; flex-wrap:wrap; gap:8px}
     .controls label{display:none}
     .col-param{width:60%}
-    .logo svg{height:28px}
+    .logo img{height:28px}
   }
 </style>
 </head>
 <body>
 <header>
-  <!-- left: inline HPE-like SVG logo -->
+  <!-- left: official uploaded SVG file used as image -->
   <div class="header-left">
-    <div class="logo" aria-hidden="true">
-      <!-- Inline SVG: "HP" in black and the "E" where lower bar is HPE green -->
-      <svg viewBox="0 0 260 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="HPE logo">
-        <!-- HP letters -->
-        <g transform="translate(4,6)">
-          <!-- H -->
-          <rect x="0" y="0" width="12" height="52" fill="#111"/>
-          <rect x="36" y="0" width="12" height="52" fill="#111"/>
-          <rect x="0" y="22" width="48" height="10" fill="#111"/>
-          <!-- P -->
-          <rect x="72" y="0" width="12" height="52" fill="#111"/>
-          <path d="M88 0 h32 a18 18 0 0 1 0 36 h-32 z" fill="#111"/>
-          <!-- E: draw outline bars (top and middle) black, lower bar green -->
-          <!-- top short black bar -->
-          <rect x="152" y="0" width="48" height="8" fill="#111"/>
-          <!-- middle black bar -->
-          <rect x="152" y="22" width="48" height="8" fill="#111"/>
-          <!-- lower green bar (HPE green) -->
-          <rect x="152" y="44" width="48" height="8" fill="var(--hpe-green)"/>
-          <!-- thin gap left to emulate E styling -->
-        </g>
-      </svg>
+    <div class="logo" aria-hidden="false">
+      <!-- ensure this file sits in the same folder as the HTML -->
+      <img id="headerLogo" src="HPE_logo_full-clr_pos_rgb.svg" alt="HPE logo" />
+    </div>
+
+    <div class="brand" aria-hidden="false">
+      <div class="title">ScoreCard</div>
+      <div class="subtitle">HPE — All metrics included for Stack Rank</div>
     </div>
   </div>
 
-  <!-- center: title -->
-  <div class="brand" aria-hidden="false">
-    <div class="title">ScoreCard</div>
-    <div class="subtitle">HPE — All metrics included for Stack Rank</div>
-  </div>
+  <div class="header-spacer" aria-hidden="true"></div>
 
   <!-- right: controls -->
   <div class="controls" role="region" aria-label="controls">
@@ -278,7 +266,6 @@
   if (EMP_ID) empInput.value = EMP_ID;
 
   function setStatus(msg, isError=false){
-    // intentionally no visible status; console is used for debug
     console.log('Status:', msg);
   }
 

@@ -11,6 +11,8 @@
     --bg:#f4f7f8;
     --card-bg:#fff;
     --hpe-green:#01a982;
+    --table-border:#e6eef3;    /* inner cell border */
+    --table-outer:#cfe6ec;     /* outer border (slightly stronger) */
   }
 
   body{
@@ -89,7 +91,7 @@
     font-size:13px;
   }
 
-  /* Export button + popup styles */
+  /* Export button + popup styles (unchanged) */
   .export-wrap { position: relative; display:inline-block; }
   .export-btn {
     display:inline-flex;
@@ -166,9 +168,49 @@
   .engineer-name{font-weight:700;color:#0b3b4a}
   .engineer-id,.stack-rank{font-size:13px;color:#6b7b86;margin-top:4px}
   .card-title{text-align:center;margin:10px 0 14px;font-size:20px;font-weight:700;color:var(--hpe-blue);}
-  table{width:100%;border-collapse:collapse;margin-top:4px}
-  thead th{background:var(--hpe-blue);color:#fff;padding:12px;text-align:left}
-  td,th{padding:12px;border-bottom:1px solid #eef6f9}
+
+  /* ---------- TABLE: outer + inner borders ---------- */
+  /* Wrap table in a container so we can apply rounded outer border cleanly */
+  .table-wrap {
+    border: 1px solid var(--table-outer);
+    border-radius: 8px;
+    overflow: hidden;           /* ensures rounded outer corners clip inner borders/header */
+    background: #fff;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;   /* collapse to have single borders between cells */
+    margin-top:0;
+  }
+
+  /* outer top header shading remains; keep header border aligned */
+  thead th{
+    background:var(--hpe-blue);
+    color:#fff;
+    padding:12px;
+    text-align:left;
+    border-bottom:1px solid var(--table-border);
+    border-right:1px solid var(--table-border);
+    font-weight:700;
+  }
+
+  thead th:last-child{ border-right: none; }
+
+  /* cells get inner borders */
+  td, th{
+    padding:12px;
+    border-right:1px solid var(--table-border);
+    border-bottom:1px solid var(--table-border);
+    vertical-align:middle;
+  }
+
+  /* remove right border on last column (so outer wrapper border shows) */
+  td:last-child, th:last-child { border-right: none; }
+
+  /* remove bottom border on last row for a neat bottom edge */
+  tbody tr:last-child td { border-bottom: none; }
+
   .col-param{width:55%}
   .col-target,.col-score{width:22%;text-align:right}
   .good{color:#0b7a3a;font-weight:700}
@@ -186,7 +228,7 @@
 <header>
   <div class="header-left">
     <div class="logo" aria-hidden="true">
-      <!-- Official inline HPE SVG -->
+      <!-- Official HPE SVG (inline) -->
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" xmlns:v="https://vecta.io/nano" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
@@ -204,7 +246,6 @@
     <input id="empInput" placeholder=" " />
     <button id="apply">Go</button>
 
-    <!-- Custom Export control -->
     <div class="export-wrap" id="exportWrap">
       <button id="exportToggle" class="export-btn" aria-haspopup="true" aria-expanded="false" aria-controls="exportMenu">
         <svg class="export-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -235,12 +276,15 @@
     <div class="card-title">Score Card</div>
 
     <div id="content">
-      <table id="compareTable" aria-label="Parameters comparison">
-        <thead>
-          <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <!-- table-wrap provides outer rounded border; table inside uses collapsed inner borders -->
+      <div class="table-wrap" role="presentation">
+        <table id="compareTable" aria-label="Parameters comparison">
+          <thead>
+            <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
 
       <div id="missingTargets" style="display:none" class="no-data"></div>
       <div id="missingData" style="display:none" class="no-data"></div>
@@ -278,7 +322,6 @@
     "ECASE SLA_HG": 0.95
   };
 
-  // DOM refs
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
   const applyBtn = document.getElementById('apply');
@@ -531,7 +574,7 @@
     setStatus(`Prepared view for ${engineerNameEl.textContent} — ${period}`);
   }
 
-  // ---------- Export helpers ----------
+  // ---------- Export helpers (same as before) ----------
   function csvEscape(value) {
     if (value == null) return '';
     const s = String(value).replace(/\r?\n/g, ' ');
@@ -608,10 +651,8 @@
   function openExportMenu() {
     exportMenu.classList.add('show');
     exportToggle.setAttribute('aria-expanded','true');
-    // focus first item for keyboard users
     const first = exportMenu.querySelector('.export-item');
     if (first) first.focus();
-    // attach outside click handler
     document.addEventListener('click', onDocClick);
     document.addEventListener('keydown', onKeyDown);
   }
@@ -663,14 +704,12 @@
         location.search = q.toString();
       };
 
-      // export toggle open/close
       exportToggle.addEventListener('click', (e) => {
         e.stopPropagation();
         if (exportMenu.classList.contains('show')) closeExportMenu();
         else openExportMenu();
       });
 
-      // keyboard support for toggle
       exportToggle.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -678,7 +717,6 @@
         }
       });
 
-      // menu item listeners
       exportCsvBtn.addEventListener('click', () => {
         const name = document.getElementById('engineerName').textContent.replace(/\s+/g,'_') || 'engineer';
         const period = monthSelect.value || (new Date().toISOString().slice(0,7));
@@ -695,16 +733,13 @@
         closeExportMenu();
       });
 
-      // close menu on focusout (optional additional UX)
       exportMenu.addEventListener('focusout', (e) => {
-        // if focus moved outside the menu and toggle, close
         setTimeout(() => {
           const active = document.activeElement;
           if (!exportWrap.contains(active)) closeExportMenu();
         }, 10);
       });
 
-      // auto-show if id+period in URL, otherwise prompt
       if (EMP_ID && URL_PERIOD) {
         await showForEmployee(scores, targets, EMP_ID, URL_PERIOD);
       } else if (EMP_ID) {

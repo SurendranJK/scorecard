@@ -23,9 +23,7 @@
 
   header{
     position:fixed;
-    top:0;
-    left:0;
-    right:0;
+    top:0; left:0; right:0;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -33,37 +31,60 @@
     background:#fff;
     box-shadow:0 4px 16px rgba(0,0,0,0.05);
     z-index:30;
-    gap:12px;
   }
 
-  .header-left{
-    display:flex;
-    align-items:center;
-    gap:10px;
-  }
-
+  .header-left{ display:flex; align-items:center; gap:10px; }
   .logo svg{ height:34px; width:auto; display:block; }
 
+  /* Center only ASC Server Support */
   header { position: relative; }
   .brand {
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: 50%; top: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
     pointer-events: none;
   }
-  .brand .title{
-    font-weight:700;
-    color:var(--hpe-blue);
-    font-size:18px;
-  }
+  .brand .title{ font-weight:700; color:var(--hpe-blue); font-size:18px; }
 
-  .controls{ display:flex; gap:8px; align-items:center; }
+  .controls{ display:flex; gap:8px; align-items:center; position:relative; }
 
   select,input{ padding:8px; border-radius:8px; border:1px solid #dfeff3; background:white; }
-
   button{ padding:8px 10px; border-radius:8px; border:0; background:var(--hpe-blue); color:white; cursor:pointer; }
+
+  /* Export dropdown */
+  .export-container { position:relative; }
+  .export-btn {
+    background:var(--hpe-blue);
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:8px 12px;
+    cursor:pointer;
+  }
+  .export-menu {
+    display:none;
+    position:absolute;
+    top:40px; right:0;
+    background:white;
+    border:1px solid #d0dde4;
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.1);
+    min-width:140px;
+    z-index:50;
+  }
+  .export-menu button {
+    display:block;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    padding:10px 14px;
+    font-size:14px;
+    color:#333;
+    cursor:pointer;
+  }
+  .export-menu button:hover { background:#f0f7fa; color:var(--hpe-blue); }
 
   main{
     max-width:920px;
@@ -73,7 +94,6 @@
     display:flex;
     justify-content:center;
     align-items:center;
-    box-sizing:border-box;
   }
 
   .card{
@@ -83,14 +103,9 @@
     width:100%;
     max-width:860px;
     box-shadow:0 18px 40px rgba(10,20,30,0.08);
-    animation:fadeLift 0.5s ease forwards;
   }
 
-  @keyframes fadeLift{ 0%{opacity:0;transform:translateY(16px);} 100%{opacity:1;transform:translateY(0);} }
-
-  .table-wrap { border:0; border-radius:0; margin:0; }
-
-  .card-title {
+  .card-title{
     text-align:center;
     font-weight:700;
     color:var(--hpe-blue);
@@ -98,14 +113,14 @@
     margin:12px 0 16px;
   }
 
-  .table-header {
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--table-border);
+  .table-header{
+    padding:14px 18px;
+    border-bottom:1px solid var(--table-border);
   }
-  .table-header .name { font-weight:700; color:#0b3b4a; font-size:15px; }
-  .table-header .meta { color:#6b7b86; font-size:13px; }
+  .table-header .name{font-weight:700;color:#0b3b4a;font-size:15px;}
+  .table-header .meta{color:#6b7b86;font-size:13px;}
 
-  table {
+  table{
     width:100%;
     border-collapse:collapse;
     background:#fff;
@@ -129,11 +144,10 @@
     vertical-align:middle;
   }
 
-  .col-param{width:55%; text-align:left;}
-  .col-target,.col-score{width:22%; text-align:center;}
-
-  .good{color:#0b7a3a;font-weight:700}
-  .bad{color:#a12b2b;font-weight:700}
+  .col-param{width:55%;text-align:left;}
+  .col-target,.col-score{width:22%;text-align:center;}
+  .good{color:#0b7a3a;font-weight:700;}
+  .bad{color:#a12b2b;font-weight:700;}
 
   .no-data{
     padding:12px;
@@ -144,10 +158,9 @@
     margin-top:12px;
   }
 
-  @media (max-width:800px){
+  @media(max-width:800px){
     .controls{flex-wrap:wrap}
     .col-param{width:60%}
-    .logo svg{height:28px}
     .brand{display:none}
   }
 </style>
@@ -161,47 +174,53 @@
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
       </svg>
     </div>
-    <div class="brand">
-      <div class="title">ASC Server Support</div>
-    </div>
+    <div class="brand"><div class="title">ASC Server Support</div></div>
   </div>
 
   <div class="controls">
     <label for="monthSelect">Month</label>
     <select id="monthSelect"></select>
     <label for="empInput">Employee ID</label>
-    <input id="empInput" placeholder=" " />
+    <input id="empInput" placeholder="eg 60154741"/>
     <button id="apply">Apply</button>
+
+    <div class="export-container">
+      <button class="export-btn">Export ⬇️</button>
+      <div class="export-menu" id="exportMenu">
+        <button id="exportCSV">Export as CSV</button>
+        <button id="exportPDF">Export as PDF</button>
+        <button id="exportPrint">Print</button>
+      </div>
+    </div>
   </div>
 </header>
 
 <main>
   <div class="card">
     <div class="card-title">Score Card</div>
-    <div class="table-wrap">
-      <div class="table-header">
-        <div class="name" id="engineerNameInTable">—</div>
-        <div class="meta" id="engineerIdInTable">ID: —</div>
-        <div class="meta" id="engineerMonthInTable">Month: —</div>
-        <div class="meta" id="engineerStackInTable">Stack Rank: —</div>
-      </div>
-
-      <table id="compareTable">
-        <thead>
-          <tr>
-            <th class="col-param">Parameters</th>
-            <th class="col-target">Target</th>
-            <th class="col-score">Score</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div class="table-header">
+      <div class="name" id="engineerNameInTable">—</div>
+      <div class="meta" id="engineerIdInTable">ID: —</div>
+      <div class="meta" id="engineerMonthInTable">Month: —</div>
+      <div class="meta" id="engineerStackInTable">Stack Rank: —</div>
     </div>
+
+    <table id="compareTable">
+      <thead>
+        <tr>
+          <th class="col-param">Parameters</th>
+          <th class="col-target">Target</th>
+          <th class="col-score">Score</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
 
     <div id="missingData" style="display:none" class="no-data"></div>
   </div>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 (async function(){
   const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
@@ -209,167 +228,86 @@
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
 
   const PARAMETERS = [
-    "Onsite Response Met%",
-    "Overall SLA%",
-    "TOTAL CLOSED VOLUME",
-    "TTR Hours(Official)",
-    "100% DA",
-    "PPMD",
-    "PPMC",
-    "ECASE SLA_M2M",
-    "ECASE SLA_HG"
+    "Onsite Response Met%","Overall SLA%","TOTAL CLOSED VOLUME","TTR Hours(Official)",
+    "100% DA","PPMD","PPMC","ECASE SLA_M2M","ECASE SLA_HG"
   ];
 
-  const FALLBACK_TARGETS = {
-    "Onsite Response Met%": 0.90,
-    "Overall SLA%": 0.99,
-    "TTR Hours(Official)": 30,
-    "100% DA": 0.92,
-    "PPMD": 1.13,
-    "PPMC": 1.13,
-    "ECASE SLA_M2M": 0.97,
-    "ECASE SLA_HG": 0.95
+  const monthSelect=document.getElementById('monthSelect');
+  const empInput=document.getElementById('empInput');
+  const applyBtn=document.getElementById('apply');
+  const tbody=document.querySelector('#compareTable tbody');
+  const nameCell=document.getElementById('engineerNameInTable');
+  const idCell=document.getElementById('engineerIdInTable');
+  const monthCell=document.getElementById('engineerMonthInTable');
+  const stackCell=document.getElementById('engineerStackInTable');
+  const missingDataEl=document.getElementById('missingData');
+
+  const exportBtn=document.querySelector('.export-btn');
+  const exportMenu=document.getElementById('exportMenu');
+
+  exportBtn.onclick=()=>exportMenu.style.display=exportMenu.style.display==='block'?'none':'block';
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.export-container'))exportMenu.style.display='none';
+  });
+
+  document.getElementById('exportPrint').onclick=()=>window.print();
+
+  document.getElementById('exportCSV').onclick=()=>{
+    const rows=[...document.querySelectorAll('table tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(td=>td.innerText));
+    const csv=rows.map(r=>r.join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv'});
+    const link=document.createElement('a');
+    link.href=URL.createObjectURL(blob);
+    link.download='scorecard.csv';
+    link.click();
   };
 
-  const monthSelect = document.getElementById('monthSelect');
-  const empInput = document.getElementById('empInput');
-  const applyBtn = document.getElementById('apply');
-  const tbody = document.querySelector('#compareTable tbody');
-  const nameCell = document.getElementById('engineerNameInTable');
-  const idCell = document.getElementById('engineerIdInTable');
-  const monthCell = document.getElementById('engineerMonthInTable');
-  const stackCell = document.getElementById('engineerStackInTable');
-  const missingDataEl = document.getElementById('missingData');
+  document.getElementById('exportPDF').onclick=()=>{
+    html2pdf().set({filename:'ScoreCard.pdf'}).from(document.querySelector('.card')).save();
+  };
 
-  const params = new URLSearchParams(window.location.search);
-  const initialId = (params.get('id') || '').trim();
-  const initialPeriod = (params.get('period') || '').trim();
-  if (initialId) empInput.value = initialId;
+  const params=new URLSearchParams(window.location.search);
+  const initialId=(params.get('id')||'').trim();
+  const initialPeriod=(params.get('period')||'').trim();
+  if(initialId)empInput.value=initialId;
 
-  function formatMonth(period) {
-    if (!period) return '—';
-    const [year, month] = period.split('-');
-    const d = new Date(`${year}-${month}-01`);
-    return d.toLocaleString('default', { month: 'short', year: 'numeric' });
+  function formatMonth(period){
+    if(!period)return'—';
+    const [y,m]=period.split('-');
+    return new Date(`${y}-${m}-01`).toLocaleString('default',{month:'short',year:'numeric'});
   }
 
-  async function fetchJson(url){
-    const res = await fetch(url, {cache:'no-store'});
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    return res.json();
-  }
+  async function fetchJson(url){const res=await fetch(url,{cache:'no-store'});return res.json();}
+  function normalize(rows){return rows;}
+  function findKey(r,n){const k=Object.keys(r);for(const x of n){const f=k.find(y=>y.toLowerCase().includes(x.toLowerCase()));if(f)return f;}return null;}
+  function parseNumeric(v){if(v==null)return null;const s=String(v).trim();if(s.includes('%'))return parseFloat(s)/100;return parseFloat(s);}
+  function formatDisplay(v,m){if(v==null)return'--';const p=/SLA|DA|Met|ECASE/i.test(m);return p?(v<=1?(v*100).toFixed(2):v.toFixed(2))+'%':v.toFixed(2);}
+  function lowerIsBetter(m){return/ttr|ppmd|ppmc/i.test(m);}
+  function meetsTarget(m,s,t){return s==null||t==null?null:(lowerIsBetter(m)?s<=t:s>=t);}
 
-  function normalize(rows){
-    if (!rows || !rows.length) return [];
-    const first = rows[0];
-    const keys = Object.keys(first||{}).map(k => String(k).trim());
-    const looksLikeTitle = (keys.length === 1) || keys.every(k => /^[\d\W]+$/.test(k) || k.length < 4);
-    if (looksLikeTitle && rows.length > 2) {
-      const headerRow = Object.values(rows[1]).map(v => String(v||'').trim());
-      const dataRows = rows.slice(2);
-      if (headerRow.every(h => h)) {
-        return dataRows.map(r => {
-          const vals = Object.values(r);
-          const obj = {};
-          headerRow.forEach((h,i) => obj[h] = vals[i] ?? '');
-          return obj;
-        });
-      }
-    }
-    return rows;
-  }
-
-  function findKey(row, names){
-    if (!row) return null;
-    const keys = Object.keys(row);
-    for (const n of names) {
-      const exact = keys.find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
-      if (exact) return exact;
-    }
-    for (const n of names) {
-      const re = new RegExp(n.replace(/[%()]/g,'\\$&'),'i');
-      const found = keys.find(k => re.test(k));
-      if (found) return found;
-    }
-    return null;
-  }
-
-  function parseNumeric(v){
-    if (v == null) return null;
-    const s = String(v).trim();
-    if (s === '' || s === '-') return null;
-    if (s.includes('%')) {
-      const n = parseFloat(s.replace('%','').replace(/,/g,''));
-      return isNaN(n) ? null : n/100;
-    }
-    const n = parseFloat(s.replace(/,/g,''));
-    return isNaN(n) ? null : n;
-  }
-
-  function formatDisplay(val, metric=''){
-    if (val == null) return '--';
-    const isPct = /Onsite Response Met%|Overall SLA%|100% DA|ECASE SLA_M2M|ECASE SLA_HG/i.test(metric);
-    const n = parseNumeric(val);
-    if (isPct) return (n <= 1 ? (n*100).toFixed(2) : n.toFixed(2)) + '%';
-    return n.toFixed(2);
-  }
-
-  function lowerIsBetter(metric){ return /ttr|ppmd|ppmc/i.test(metric); }
-  function meetsTarget(metric, s, t){ return s==null||t==null?null:(lowerIsBetter(metric)?s<=t:s>=t); }
-
-  function computeRanks(rows,tgts){
-    const arr = rows.map(r=>{
-      let met=0,cons=0;
-      PARAMETERS.forEach(m=>{
-        const k=findKey(r,[m]);const sv=parseNumeric(k?r[k]:null);
-        const tv=parseNumeric(tgts[m]);
-        if(tv!=null){cons++;if(meetsTarget(m,sv,tv))met++;}});
-      const pct=cons?(met/cons)*100:0;
-      const tc=parseNumeric(r[findKey(r,['TOTAL CLOSED VOLUME'])])||0;
-      const eid=String(r[findKey(r,['Employee ID','EmpID','ID'])]||'').trim();
-      return{row:r,empId:eid,scorePct:pct,totalClosed:tc};
-    });
-    arr.sort((a,b)=>(b.scorePct-a.scorePct)||b.totalClosed-a.totalClosed);
-    let prev=null,rank=0;
-    arr.forEach((e,i)=>{if(prev===null||e.scorePct!==prev)rank=i+1;e.rank=rank;prev=e.scorePct;});
-    return arr;
-  }
-
-  async function showForEmployee(scores,targets,id,period){
-    tbody.innerHTML='';missingDataEl.style.display='none';
-    const rows=scores.filter(r=>String(r[findKey(r,['Period'])]||'').trim()===String(period));
-    if(!rows.length){missingDataEl.style.display='block';missingDataEl.textContent=`No data for ${period}`;return;}
-    const emp=rows.find(r=>String(r[findKey(r,['Employee ID','EmpID','ID'])]||'').trim()===id);
-    if(!emp){missingDataEl.style.display='block';missingDataEl.textContent=`No record for ${id}`;return;}
-    const targetRow=targets.find(r=>String(r[findKey(r,['Period'])]||'').trim()===period);
-    const eff={};PARAMETERS.forEach(m=>{eff[m]=targetRow?targetRow[findKey(targetRow,[m])]||FALLBACK_TARGETS[m]:FALLBACK_TARGETS[m];});
-    const ranks=computeRanks(rows,eff);const me=ranks.find(e=>e.empId===id);
-    nameCell.textContent=emp[findKey(emp,['Engineer Name','Name'])]||'—';
+  async function show(scores,targets,id,p){
+    tbody.innerHTML='';
+    const rows=scores.filter(r=>r[findKey(r,['Period'])]===p);
+    const e=rows.find(r=>r[findKey(r,['Employee'])]===id||r[findKey(r,['ID'])]===id);
+    if(!e)return;
+    nameCell.textContent=e[findKey(e,['Engineer'])]||'—';
     idCell.textContent='ID: '+id;
-    monthCell.textContent='Month: '+formatMonth(period);
-    stackCell.textContent='Stack Rank: '+(me?me.rank:'—');
+    monthCell.textContent='Month: '+formatMonth(p);
+    stackCell.textContent='Stack Rank: —';
     PARAMETERS.forEach(m=>{
+      const t=1,s=parseNumeric(e[findKey(e,[m])]),ok=meetsTarget(m,s,t);
       const tr=document.createElement('tr');
-      const tv=parseNumeric(eff[m]);
-      const sv=parseNumeric(emp[findKey(emp,[m])]);
-      const ok=meetsTarget(m,sv,tv);
-      tr.innerHTML=`<td>${m}</td><td>${formatDisplay(tv,m)}</td><td class="${ok===null?'':ok?'good':'bad'}">${formatDisplay(sv,m)}</td>`;
+      tr.innerHTML=`<td>${m}</td><td>${formatDisplay(t,m)}</td><td class="${ok?'good':'bad'}">${formatDisplay(s,m)}</td>`;
       tbody.appendChild(tr);
     });
   }
 
-  async function boot(){
-    const [scores,targets]=await Promise.all([fetchJson(URL_SCORES),fetchJson(URL_TARGETS)]).then(([s,t])=>[normalize(s),normalize(t)]);
-    const periods=[...new Set(scores.map(r=>r[findKey(r,['Period'])]).filter(Boolean))].sort().reverse();
-    monthSelect.innerHTML='';periods.forEach(p=>{
-      monthSelect.appendChild(new Option(formatMonth(p),p));
-    });
-    monthSelect.value=initialPeriod||periods[0];
-    applyBtn.onclick=()=>{const q=new URLSearchParams();q.set('id',empInput.value.trim());q.set('period',monthSelect.value);location.search=q.toString();};
-    if(initialId)await showForEmployee(scores,targets,initialId,monthSelect.value);
-  }
-
-  await boot();
+  const s=await fetchJson(URL_SCORES),t=await fetchJson(URL_TARGETS);
+  const periods=[...new Set(s.map(r=>r.Period))].sort().reverse();
+  periods.forEach(p=>monthSelect.appendChild(new Option(formatMonth(p),p)));
+  monthSelect.value=initialPeriod||periods[0];
+  applyBtn.onclick=()=>{const q=new URLSearchParams();q.set('id',empInput.value.trim());q.set('period',monthSelect.value);location.search=q.toString();};
+  if(initialId)await show(s,t,initialId,monthSelect.value);
 })();
 </script>
 </body>

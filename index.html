@@ -10,7 +10,6 @@
     --muted:#5f6f76;
     --bg:#f4f7f8;
     --card-bg:#fff;
-    --hpe-green:#01a982;
     --table-border:#d0dde4;
   }
 
@@ -35,7 +34,6 @@
     box-shadow:0 4px 16px rgba(0,0,0,0.05);
     z-index:30;
     gap:12px;
-    box-sizing:border-box;
   }
 
   .header-left{
@@ -46,7 +44,6 @@
 
   .logo svg{ height:34px; width:auto; display:block; }
 
-  /* Center only ASC Server Support */
   header { position: relative; }
   .brand {
     position: absolute;
@@ -91,15 +88,7 @@
 
   @keyframes fadeLift{ 0%{opacity:0;transform:translateY(16px);} 100%{opacity:1;transform:translateY(0);} }
 
-  /* --- Table and Header Section --- */
-  .table-wrap {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    overflow: visible;
-    padding: 0;
-    margin: 0;
-  }
+  .table-wrap { border:0; border-radius:0; margin:0; }
 
   .card-title {
     text-align:center;
@@ -112,29 +101,16 @@
   .table-header {
     padding: 14px 18px;
     border-bottom: 1px solid var(--table-border);
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:12px;
-    background: transparent;
   }
-  .table-header .left {
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-  }
-  .table-header .left .name { font-weight:700; color:#0b3b4a; font-size:15px; }
-  .table-header .left .meta { color:#6b7b86; font-size:13px; }
+  .table-header .name { font-weight:700; color:#0b3b4a; font-size:15px; }
+  .table-header .meta { color:#6b7b86; font-size:13px; }
 
-  /* --- Table --- */
   table {
     width:100%;
     border-collapse:collapse;
-    margin:0;
     background:#fff;
     border:2px solid var(--table-border);
     border-radius:8px;
-    overflow:hidden;
   }
 
   thead th{
@@ -200,17 +176,14 @@
 </header>
 
 <main>
-  <div class="card" role="region" aria-label="Score Card area">
+  <div class="card">
     <div class="card-title">Score Card</div>
-
     <div class="table-wrap">
       <div class="table-header">
-        <div class="left">
-          <div id="engineerNameInTable" class="name">—</div>
-          <div id="engineerIdInTable" class="meta">ID: —</div>
-          <div id="engineerMonthInTable" class="meta">Month: —</div>
-          <div id="engineerStackInTable" class="meta">Stack Rank: —</div>
-        </div>
+        <div class="name" id="engineerNameInTable">—</div>
+        <div class="meta" id="engineerIdInTable">ID: —</div>
+        <div class="meta" id="engineerMonthInTable">Month: —</div>
+        <div class="meta" id="engineerStackInTable">Stack Rank: —</div>
       </div>
 
       <table id="compareTable">
@@ -273,10 +246,15 @@
   const initialPeriod = (params.get('period') || '').trim();
   if (initialId) empInput.value = initialId;
 
-  function setStatus(msg){ console.log('STATUS:', msg); }
+  function formatMonth(period) {
+    if (!period) return '—';
+    const [year, month] = period.split('-');
+    const d = new Date(`${year}-${month}-01`);
+    return d.toLocaleString('default', { month: 'short', year: 'numeric' });
+  }
 
   async function fetchJson(url){
-    const res = await fetch(url, {cache: 'no-store'});
+    const res = await fetch(url, {cache:'no-store'});
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.json();
   }
@@ -303,9 +281,9 @@
 
   function findKey(row, names){
     if (!row) return null;
-    const keys = Object.keys(row || {});
+    const keys = Object.keys(row);
     for (const n of names) {
-      const exact = keys.find(k => k && k.trim().toLowerCase() === n.trim().toLowerCase());
+      const exact = keys.find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
       if (exact) return exact;
     }
     for (const n of names) {
@@ -339,27 +317,21 @@
   function lowerIsBetter(metric){ return /ttr|ppmd|ppmc/i.test(metric); }
   function meetsTarget(metric, s, t){ return s==null||t==null?null:(lowerIsBetter(metric)?s<=t:s>=t); }
 
-  function computeAverageTotalClosed(rows){
-    const key = rows.length?findKey(rows[0],['TOTAL CLOSED VOLUME']):null;
-    if (!key) return null;
-    let s=0,c=0;rows.forEach(r=>{const v=parseNumeric(r[key]);if(v!=null){s+=v;c++;}});
-    return c?s/c:null;
-  }
-
   function computeRanks(rows,tgts){
-    const arr=rows.map(r=>{
+    const arr = rows.map(r=>{
       let met=0,cons=0;
       PARAMETERS.forEach(m=>{
         const k=findKey(r,[m]);const sv=parseNumeric(k?r[k]:null);
         const tv=parseNumeric(tgts[m]);
         if(tv!=null){cons++;if(meetsTarget(m,sv,tv))met++;}});
       const pct=cons?(met/cons)*100:0;
-      const tkey=findKey(r,['TOTAL CLOSED VOLUME']);const tc=parseNumeric(r[tkey])||0;
-      const idk=findKey(r,['Employee ID','EmpID','ID']);const eid=idk?String(r[idk]).trim():'';
+      const tc=parseNumeric(r[findKey(r,['TOTAL CLOSED VOLUME'])])||0;
+      const eid=String(r[findKey(r,['Employee ID','EmpID','ID'])]||'').trim();
       return{row:r,empId:eid,scorePct:pct,totalClosed:tc};
     });
     arr.sort((a,b)=>(b.scorePct-a.scorePct)||b.totalClosed-a.totalClosed);
-    let prev=null,rank=0;arr.forEach((e,i)=>{if(prev===null||e.scorePct!==prev)rank=i+1;e.rank=rank;prev=e.scorePct;});
+    let prev=null,rank=0;
+    arr.forEach((e,i)=>{if(prev===null||e.scorePct!==prev)rank=i+1;e.rank=rank;prev=e.scorePct;});
     return arr;
   }
 
@@ -370,12 +342,11 @@
     const emp=rows.find(r=>String(r[findKey(r,['Employee ID','EmpID','ID'])]||'').trim()===id);
     if(!emp){missingDataEl.style.display='block';missingDataEl.textContent=`No record for ${id}`;return;}
     const targetRow=targets.find(r=>String(r[findKey(r,['Period'])]||'').trim()===period);
-    const avg=computeAverageTotalClosed(rows);
-    const eff={};PARAMETERS.forEach(m=>{eff[m]=targetRow?targetRow[findKey(targetRow,[m])]||FALLBACK_TARGETS[m]:(m==='TOTAL CLOSED VOLUME'?avg:FALLBACK_TARGETS[m]);});
+    const eff={};PARAMETERS.forEach(m=>{eff[m]=targetRow?targetRow[findKey(targetRow,[m])]||FALLBACK_TARGETS[m]:FALLBACK_TARGETS[m];});
     const ranks=computeRanks(rows,eff);const me=ranks.find(e=>e.empId===id);
     nameCell.textContent=emp[findKey(emp,['Engineer Name','Name'])]||'—';
     idCell.textContent='ID: '+id;
-    monthCell.textContent='Month: '+period;
+    monthCell.textContent='Month: '+formatMonth(period);
     stackCell.textContent='Stack Rank: '+(me?me.rank:'—');
     PARAMETERS.forEach(m=>{
       const tr=document.createElement('tr');
@@ -388,15 +359,16 @@
   }
 
   async function boot(){
-    const {scores,targets}=await loadAll();
+    const [scores,targets]=await Promise.all([fetchJson(URL_SCORES),fetchJson(URL_TARGETS)]).then(([s,t])=>[normalize(s),normalize(t)]);
     const periods=[...new Set(scores.map(r=>r[findKey(r,['Period'])]).filter(Boolean))].sort().reverse();
-    monthSelect.innerHTML='';periods.forEach(p=>monthSelect.appendChild(new Option(p,p)));
+    monthSelect.innerHTML='';periods.forEach(p=>{
+      monthSelect.appendChild(new Option(formatMonth(p),p));
+    });
     monthSelect.value=initialPeriod||periods[0];
     applyBtn.onclick=()=>{const q=new URLSearchParams();q.set('id',empInput.value.trim());q.set('period',monthSelect.value);location.search=q.toString();};
     if(initialId)await showForEmployee(scores,targets,initialId,monthSelect.value);
   }
 
-  async function loadAll(){return{scores:normalize(await fetchJson(URL_SCORES)),targets:normalize(await fetchJson(URL_TARGETS))};}
   await boot();
 })();
 </script>

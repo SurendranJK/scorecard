@@ -10,7 +10,7 @@
     --muted:#5f6f76;
     --bg:#f4f7f8;
     --card-bg:#fff;
-    --table-border:#d0dde4;
+    --hpe-green:#01a982;
   }
 
   body{
@@ -23,7 +23,9 @@
 
   header{
     position:fixed;
-    top:0; left:0; right:0;
+    top:0;
+    left:0;
+    right:0;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -31,135 +33,112 @@
     background:#fff;
     box-shadow:0 4px 16px rgba(0,0,0,0.05);
     z-index:30;
+    gap:12px;
+    box-sizing:border-box;
   }
 
-  .header-left{ display:flex; align-items:center; gap:10px; }
-  .logo svg{ height:34px; width:auto; display:block; }
-
-  header { position: relative; }
-  .brand {
-    position: absolute;
-    left: 50%; top: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    pointer-events: none;
+  .header-left{
+    display:flex;
+    align-items:center;
+    gap:10px;
   }
-  .brand .title{ font-weight:700; color:var(--hpe-blue); font-size:18px; }
 
-  .controls{ display:flex; gap:8px; align-items:center; position:relative; }
-  select,input{ padding:8px; border-radius:8px; border:1px solid #dfeff3; background:white; }
-  button{ padding:8px 10px; border-radius:8px; border:0; background:var(--hpe-blue); color:white; cursor:pointer; }
+  .logo svg{
+    height:34px;
+    width:auto;
+    display:block;
+  }
 
-  /* Export dropdown */
-  .export-container { position:relative; }
-  .export-btn {
+  .brand{
+    line-height:1.2;
+  }
+  .brand .title{
+    font-weight:700;
+    color:var(--hpe-blue);
+    font-size:18px;
+  }
+  .brand .subtitle{
+    font-size:12px;
+    color:#6b7b86;
+  }
+
+  .controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+
+  select,input{
+    padding:8px;
+    border-radius:8px;
+    border:1px solid #dfeff3;
+    background:white;
+  }
+
+  button{
+    padding:8px 10px;
+    border-radius:8px;
+    border:0;
     background:var(--hpe-blue);
     color:white;
-    border:none;
-    border-radius:8px;
-    padding:8px 12px;
     cursor:pointer;
   }
-  .export-menu {
-    display:none;
-    position:absolute;
-    top:40px; right:0;
+
+  button.small{
+    padding:6px 8px;
+    font-size:13px;
+  }
+
+  .export-select{
+    padding:8px;
+    border-radius:8px;
+    border:1px solid #dfeff3;
     background:white;
-    border:1px solid #d0dde4;
-    border-radius:8px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.1);
-    min-width:140px;
-    z-index:50;
-  }
-  .export-menu button {
-    display:block;
-    width:100%;
-    text-align:left;
-    background:none;
-    border:none;
-    padding:10px 14px;
-    font-size:14px;
-    color:#333;
     cursor:pointer;
   }
-  .export-menu button:hover { background:#f0f7fa; color:var(--hpe-blue); }
 
   main{
-    max-width:920px;
+    max-width:900px;
     margin:0 auto;
     padding:28px;
     min-height:calc(100vh - 92px);
     display:flex;
     justify-content:center;
     align-items:center;
+    box-sizing:border-box;
   }
 
   .card{
     background:var(--card-bg);
     border-radius:14px;
-    padding:14px;
+    padding:22px;
     width:100%;
-    max-width:860px;
+    max-width:820px;
     box-shadow:0 18px 40px rgba(10,20,30,0.08);
+    animation:fadeLift 0.5s ease forwards;
   }
 
-  .card-title{
-    text-align:center;
-    font-weight:700;
-    color:var(--hpe-blue);
-    font-size:20px;
-    margin:12px 0 16px;
+  @keyframes fadeLift{
+    0%{opacity:0;transform:translateY(16px);}
+    100%{opacity:1;transform:translateY(0);}
   }
 
-  .table-header{
-    padding:14px 18px;
-    border-bottom:1px solid var(--table-border);
-  }
-  .table-header .name{font-weight:700;color:#0b3b4a;font-size:15px;}
-  .table-header .meta{color:#6b7b86;font-size:13px;}
+  .engineer-name{font-weight:700;color:#0b3b4a}
+  .engineer-id,.stack-rank{font-size:13px;color:#6b7b86;margin-top:4px}
+  .card-title{text-align:center;margin:10px 0 14px;font-size:20px;font-weight:700;color:var(--hpe-blue);}
+  table{width:100%;border-collapse:collapse;margin-top:4px}
+  thead th{background:var(--hpe-blue);color:#fff;padding:12px;text-align:left}
+  td,th{padding:12px;border-bottom:1px solid #eef6f9}
+  .col-param{width:55%}
+  .col-target,.col-score{width:22%;text-align:right}
+  .good{color:#0b7a3a;font-weight:700}
+  .bad{color:#a12b2b;font-weight:700}
+  .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
 
-  table{
-    width:100%;
-    border-collapse:collapse;
-    background:#fff;
-    border:2px solid var(--table-border);
-    border-radius:8px;
-  }
-
-  thead th{
-    background:var(--hpe-blue);
-    color:#fff;
-    padding:12px;
-    text-align:center;
-    vertical-align:middle;
-    border:1px solid var(--table-border);
-    font-weight:700;
-  }
-
-  td,th{
-    padding:12px;
-    border:1px solid var(--table-border);
-    vertical-align:middle;
-  }
-
-  .col-param{width:55%;text-align:left;}
-  .col-target,.col-score{width:22%;text-align:center;}
-  .good{color:#0b7a3a;font-weight:700;}
-  .bad{color:#a12b2b;font-weight:700;}
-
-  .no-data{
-    padding:12px;
-    border-radius:8px;
-    background:#fff6f6;
-    border:1px solid #ffd6d6;
-    color:#8b1a1a;
-    margin-top:12px;
-  }
-
-  @media(max-width:800px){
+  @media (max-width:800px){
     .controls{flex-wrap:wrap}
     .col-param{width:60%}
-    .brand{display:none}
+    .logo svg{height:28px}
   }
 </style>
 </head>
@@ -167,143 +146,487 @@
 <header>
   <div class="header-left">
     <div class="logo" aria-hidden="true">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" role="img" aria-label="HPE logo">
+      <!-- Official HPE SVG provided by you (embedded inline) -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" xmlns:v="https://vecta.io/nano" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
       </svg>
     </div>
-    <div class="brand"><div class="title">ASC Server Support</div></div>
+    <div class="brand">
+      <div class="title">ASC Server Support</div>
+    </div>
   </div>
 
   <div class="controls">
     <label for="monthSelect">Month</label>
     <select id="monthSelect"></select>
     <label for="empInput">Employee ID</label>
-    <input id="empInput" placeholder="eg 60154741"/>
-    <button id="apply">Apply</button>
+    <input id="empInput" placeholder="" />
+    <button id="apply">Go</button>
 
-    <div class="export-container">
-      <button class="export-btn">Export</button>
-      <div class="export-menu" id="exportMenu">
-        <button id="exportCSV">Export as CSV</button>
-        <button id="exportPDF">Export as PDF</button>
-        <button id="exportPrint">Print</button>
-      </div>
-    </div>
+    <!-- single export dropdown -->
+    <label for="exportSelect" style="display:none">Export</label>
+    <select id="exportSelect" class="export-select" aria-label="Export options">
+      <option value="">Export ▾</option>
+      <option value="csv">Export CSV</option>
+      <option value="pdf">Export PDF</option>
+      <option value="print">Print</option>
+    </select>
   </div>
 </header>
 
 <main>
-  <div class="card">
-    <div class="card-title">Score Card</div>
-    <div class="table-header">
-      <div class="name" id="engineerNameInTable">—</div>
-      <div class="meta" id="engineerIdInTable">ID: —</div>
-      <div class="meta" id="engineerMonthInTable">Month: —</div>
-      <div class="meta" id="engineerStackInTable">Stack Rank: —</div>
+  <div class="card" role="region" aria-label="Score Card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="flex:1">
+        <div id="engineerName" class="engineer-name">—</div>
+        <div id="engineerId" class="engineer-id">ID: —</div>
+        <div id="stackRank" class="stack-rank">Stack Rank: —</div>
+      </div>
     </div>
 
-    <table id="compareTable">
-      <thead>
-        <tr>
-          <th class="col-param">Parameters</th>
-          <th class="col-target">Target</th>
-          <th class="col-score">Score</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="card-title">Score Card</div>
 
-    <div id="missingData" style="display:none" class="no-data"></div>
+    <div id="content">
+      <table id="compareTable" aria-label="Parameters comparison">
+        <thead>
+          <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="missingTargets" style="display:none" class="no-data"></div>
+      <div id="missingData" style="display:none" class="no-data"></div>
+    </div>
   </div>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 (async function(){
+  // --- Sheet config ---
   const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
 
+  // parameters considered for ranking and display
   const PARAMETERS = [
-    "Onsite Response Met%","Overall SLA%","TOTAL CLOSED VOLUME","TTR Hours(Official)",
-    "100% DA","PPMD","PPMC","ECASE SLA_M2M","ECASE SLA_HG"
+    "Onsite Response Met%",
+    "Overall SLA%",
+    "TOTAL CLOSED VOLUME",
+    "TTR Hours(Official)",
+    "100% DA",
+    "PPMD",
+    "PPMC",
+    "ECASE SLA_M2M",
+    "ECASE SLA_HG"
   ];
 
+  // fallback targets if targets sheet doesn't provide them
   const FALLBACK_TARGETS = {
-    "Onsite Response Met%": 0.9, "Overall SLA%": 0.99, "TTR Hours(Official)": 30,
-    "100% DA": 0.92, "PPMD": 1.13, "PPMC": 1.13, "ECASE SLA_M2M": 0.97, "ECASE SLA_HG": 0.95
+    "Onsite Response Met%": 0.90,
+    "Overall SLA%": 0.99,
+    "TTR Hours(Official)": 30,
+    "100% DA": 0.92,
+    "PPMD": 1.13,
+    "PPMC": 1.13,
+    "ECASE SLA_M2M": 0.97,
+    "ECASE SLA_HG": 0.95
   };
 
-  const monthSelect=document.getElementById('monthSelect');
-  const empInput=document.getElementById('empInput');
-  const applyBtn=document.getElementById('apply');
-  const tbody=document.querySelector('#compareTable tbody');
-  const nameCell=document.getElementById('engineerNameInTable');
-  const idCell=document.getElementById('engineerIdInTable');
-  const monthCell=document.getElementById('engineerMonthInTable');
-  const stackCell=document.getElementById('engineerStackInTable');
+  // DOM refs
+  const monthSelect = document.getElementById('monthSelect');
+  const empInput = document.getElementById('empInput');
+  const applyBtn = document.getElementById('apply');
+  const exportSelect = document.getElementById('exportSelect');
+  const engineerNameEl = document.getElementById('engineerName');
+  const engineerIdEl = document.getElementById('engineerId');
+  const stackRankEl = document.getElementById('stackRank');
+  const tbody = document.querySelector('#compareTable tbody');
+  const missingTargetsEl = document.getElementById('missingTargets');
+  const missingDataEl = document.getElementById('missingData');
 
-  const exportBtn=document.querySelector('.export-btn');
-  const exportMenu=document.getElementById('exportMenu');
+  const params = new URLSearchParams(window.location.search);
+  let EMP_ID = (params.get('id') || '').trim();
+  const URL_PERIOD = (params.get('period') || '').trim();
+  if (EMP_ID) empInput.value = EMP_ID;
 
-  exportBtn.onclick=()=>exportMenu.style.display=exportMenu.style.display==='block'?'none':'block';
-  document.addEventListener('click',e=>{if(!e.target.closest('.export-container'))exportMenu.style.display='none';});
-
-  document.getElementById('exportPrint').onclick=()=>window.print();
-  document.getElementById('exportCSV').onclick=()=>{
-    const rows=[...document.querySelectorAll('table tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(td=>td.innerText));
-    const csv=rows.map(r=>r.join(',')).join('\n');
-    const blob=new Blob([csv],{type:'text/csv'});
-    const link=document.createElement('a'); link.href=URL.createObjectURL(blob);
-    link.download='scorecard.csv'; link.click();
-  };
-  document.getElementById('exportPDF').onclick=()=>{
-    html2pdf().set({filename:'ScoreCard.pdf'}).from(document.querySelector('.card')).save();
-  };
-
-  function formatMonth(period){
-    if(!period)return'—';
-    const [y,m]=period.split('-');
-    return new Date(`${y}-${m}-01`).toLocaleString('default',{month:'short',year:'numeric'});
+  // small status helper (logs to console so UI remains clean)
+  function setStatus(msg, isError=false){
+    console.log('Status:', msg);
   }
 
-  async function fetchJson(url){const r=await fetch(url,{cache:'no-store'});return r.json();}
-  function findKey(r,n){const k=Object.keys(r);for(const x of n){const f=k.find(y=>y.toLowerCase().includes(x.toLowerCase()));if(f)return f;}return null;}
-  function parseNumeric(v){if(v==null)return null;const s=String(v).trim();if(s.includes('%'))return parseFloat(s)/100;return parseFloat(s);}
-  function formatDisplay(v,m){if(v==null)return'--';const p=/SLA|DA|Met|ECASE/i.test(m);return p?(v<=1?(v*100).toFixed(2):v.toFixed(2))+'%':v.toFixed(2);}
-  function lowerIsBetter(m){return/ttr|ppmd|ppmc/i.test(m);}
-  function meetsTarget(m,s,t){return s==null||t==null?null:(lowerIsBetter(m)?s<=t:s>=t);}
+  async function fetchJson(url){
+    const r = await fetch(url, {cache:'no-store'});
+    if (!r.ok) throw new Error('Failed to fetch ' + url + ' (' + r.status + ')');
+    return r.json();
+  }
 
-  const s=await fetchJson(URL_SCORES),t=await fetchJson(URL_TARGETS);
-  const periods=[...new Set(s.map(r=>r.Period))].sort().reverse();
-  periods.forEach(p=>monthSelect.appendChild(new Option(formatMonth(p),p)));
-  const params=new URLSearchParams(window.location.search);
-  const initialId=params.get('id')||''; const initialPeriod=params.get('period')||periods[0];
-  empInput.value=initialId; monthSelect.value=initialPeriod;
+  function normalize(rows){
+    if (!rows || !rows.length) return [];
+    const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
+    const looksLikeTitle = firstKeys.length === 1 || firstKeys.every(k => /^[\d\W]+$/.test(k) || k.length < 4);
+    if (looksLikeTitle && rows.length > 1) {
+      const headers = Object.values(rows[1]).map(v => String(v||'').trim());
+      const dataRows = rows.slice(2);
+      if (headers.every(h => h)) {
+        return dataRows.map(r => {
+          const vals = Object.values(r);
+          const obj = {};
+          headers.forEach((h,i)=> obj[h] = vals[i] ?? '');
+          return obj;
+        });
+      }
+    }
+    return rows;
+  }
 
-  async function show(id,p){
-    tbody.innerHTML='';
-    const rows=s.filter(r=>r.Period===p);
-    const e=rows.find(r=>r["Employee ID"]===id||r["EmpID"]===id);
-    if(!e)return;
-    nameCell.textContent=e["Engineer Name"]||'—';
-    idCell.textContent='ID: '+id;
-    monthCell.textContent='Month: '+formatMonth(p);
-    stackCell.textContent='Stack Rank: —';
-    const avg=rows.reduce((a,r)=>a+(parseNumeric(r["TOTAL CLOSED VOLUME"])||0),0)/rows.length||0;
-    PARAMETERS.forEach(m=>{
-      let tVal=m==="TOTAL CLOSED VOLUME"?avg:(FALLBACK_TARGETS[m]||1);
-      const sVal=parseNumeric(e[m]);
-      const ok=meetsTarget(m,sVal,tVal);
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${m}</td><td>${formatDisplay(tVal,m)}</td><td class="${ok?'good':'bad'}">${formatDisplay(sVal,m)}</td>`;
+  function parseNumeric(v){
+    if (v == null || v === '') return null;
+    const s = String(v).trim();
+    if (s === '-') return null;
+    if (s.includes('%')) {
+      const n = parseFloat(s.replace('%','').replace(/,/g,''));
+      return isNaN(n) ? null : n/100;
+    }
+    const n = parseFloat(s.replace(/,/g,''));
+    if (isNaN(n)) return null;
+    return n;
+  }
+
+  function formatDisplay(val, metric = '') {
+    if (val == null) return '--';
+    const isPercentMetric = /Onsite Response Met%|Overall SLA%|100% DA|ECASE SLA_M2M|ECASE SLA_HG/i.test(metric);
+    if (typeof val === 'number') {
+      if (isPercentMetric) {
+        return (val <= 1 ? (val * 100).toFixed(2) : val.toFixed(2)) + '%';
+      }
+      return val.toFixed(2);
+    }
+    const n = parseNumeric(val);
+    if (n == null) return String(val);
+    if (isPercentMetric) {
+      return (n <= 1 ? (n * 100).toFixed(2) : n.toFixed(2)) + '%';
+    }
+    return n.toFixed(2);
+  }
+
+  function findKey(obj, names){
+    const keys = Object.keys(obj||{});
+    for (const n of names){
+      const exact = keys.find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
+      if (exact) return exact;
+    }
+    for (const n of names){
+      const re = new RegExp(n.replace(/[%()]/g,'\\$&'),'i');
+      const found = keys.find(k => re.test(k));
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function lowerIsBetter(metric){
+    return /ttr|ppmd|ppmc/i.test(metric);
+  }
+
+  function meetsTarget(metric, scoreVal, targetVal){
+    if (scoreVal == null || targetVal == null) return null;
+    return lowerIsBetter(metric) ? (scoreVal <= targetVal) : (scoreVal >= targetVal);
+  }
+
+  function computeAverageTotalClosed(rowsForPeriod) {
+    const key = rowsForPeriod.length ? findKey(rowsForPeriod[0], ['TOTAL CLOSED VOLUME','Total Closed Volume','TotalClosedVolume']) : null;
+    if (!key) return null;
+    let sum = 0, count = 0;
+    rowsForPeriod.forEach(r => {
+      const v = parseNumeric(r[key]);
+      if (v != null) { sum += v; count++; }
+    });
+    return count ? (sum / count) : null;
+  }
+
+  function computeRanks(rowsForPeriod, effectiveTargets){
+    const entries = rowsForPeriod.map(r => {
+      let met = 0, considered = 0;
+      PARAMETERS.forEach(metric => {
+        const k = findKey(r, [metric]);
+        const scoreRaw = k ? r[k] : null;
+        const scoreNum = parseNumeric(scoreRaw);
+        const tgtRaw = effectiveTargets[metric];
+        const tgtNum = (tgtRaw !== undefined && tgtRaw !== null) ? parseNumeric(tgtRaw) : null;
+        if (tgtNum === null) return;
+        considered++;
+        const ok = meetsTarget(metric, scoreNum, tgtNum);
+        if (ok === true) met++;
+      });
+      const scorePercent = considered ? (met / considered) * 100 : 0;
+      const totalClosedKey = findKey(r, ['TOTAL CLOSED VOLUME','Total Closed Volume','TOTAL CLOSED VOLUME']);
+      const totalClosed = totalClosedKey ? (parseNumeric(r[totalClosedKey]) || 0) : 0;
+      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+      const empIdVal = idKey ? String(r[idKey]||'').trim() : '';
+      return {row: r, empId: empIdVal, met, considered, scorePercent, totalClosed};
+    });
+
+    entries.sort((a,b) => {
+      if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
+      return b.totalClosed - a.totalClosed;
+    });
+
+    let prev = null, rank = 0;
+    entries.forEach((e,i) => {
+      if (prev === null || e.scorePercent !== prev) rank = i+1;
+      e.rank = rank;
+      prev = e.scorePercent;
+    });
+    return entries;
+  }
+
+  async function loadAll(){
+    setStatus('Loading scores & targets...');
+    missingTargetsEl.style.display = 'none';
+    missingDataEl.style.display = 'none';
+    try {
+      const [rawScores, rawTargets] = await Promise.all([
+        fetchJson(URL_SCORES).catch(()=>[]),
+        fetchJson(URL_TARGETS).catch(()=>[])
+      ]);
+      const scores = normalize(rawScores || []);
+      const targets = normalize(rawTargets || []);
+      if (!scores.length) {
+        setStatus('No data found in scores sheet', true);
+        missingDataEl.style.display = 'block';
+        missingDataEl.innerHTML = '<div class="no-data">No rows in scores sheet. Ensure the tab is named <strong>scores</strong> and published.</div>';
+        return {scores:[], targets:[]};
+      }
+      setStatus(`Loaded ${scores.length} score rows`);
+      return {scores, targets};
+    } catch (err) {
+      setStatus('Error loading sheets: ' + err.message, true);
+      throw err;
+    }
+  }
+
+  async function showForEmployee(allScores, allTargets, empId, period){
+    setStatus('Preparing view...');
+    tbody.innerHTML = '';
+    missingTargetsEl.style.display = 'none';
+    missingDataEl.style.display = 'none';
+
+    const rowsForPeriod = allScores.filter(r => {
+      const pkey = findKey(r, ['Period','period']);
+      return pkey && String(r[pkey]||'').trim() === String(period).trim();
+    });
+
+    const empRow = rowsForPeriod.find(r => {
+      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+      return idKey && String(r[idKey]||'').trim() === String(empId).trim();
+    });
+
+    if (!empRow) {
+      setStatus(`No data found for Employee ${empId} in ${period}`, true);
+      missingDataEl.style.display = 'block';
+      missingDataEl.innerHTML = `<div class="no-data">No row found for employee <strong>${empId}</strong> in <strong>${period}</strong>.</div>`;
+      return;
+    }
+
+    let targetRowForPeriod = allTargets.find(r => {
+      const pKey = findKey(r, ['Period','period']);
+      return pKey && String(r[pKey]||'').trim() === String(period).trim();
+    });
+
+    const avgTotalClosed = computeAverageTotalClosed(rowsForPeriod);
+    const effectiveTargets = {};
+    PARAMETERS.forEach(metric => {
+      if (targetRowForPeriod) {
+        const k = findKey(targetRowForPeriod, [metric]);
+        if (k) { effectiveTargets[metric] = targetRowForPeriod[k]; return; }
+      }
+      if (metric === 'TOTAL CLOSED VOLUME') {
+        effectiveTargets[metric] = avgTotalClosed != null ? avgTotalClosed : null;
+        return;
+      }
+      if (FALLBACK_TARGETS[metric] !== undefined) { effectiveTargets[metric] = FALLBACK_TARGETS[metric]; return; }
+      effectiveTargets[metric] = null;
+    });
+
+    const rankingEntries = computeRanks(rowsForPeriod, effectiveTargets);
+    const myEntry = rankingEntries.find(e => String(e.empId) === String(empId));
+    if (myEntry) stackRankEl.textContent = 'Stack Rank: ' + myEntry.rank;
+    else stackRankEl.textContent = 'Stack Rank: —';
+
+    const nameKey = findKey(empRow, ['Engineer Name','Name','Engineer']);
+    const idKey = findKey(empRow, ['Employee ID','EmpID','EmployeeID','ID']);
+    engineerNameEl.textContent = nameKey ? (empRow[nameKey] || '—') : '—';
+    engineerIdEl.textContent = 'ID: ' + (idKey ? (empRow[idKey] || '—') : empId);
+
+    tbody.innerHTML = '';
+    PARAMETERS.forEach(metric => {
+      const targetRaw = effectiveTargets[metric];
+      const targetNum = targetRaw != null ? parseNumeric(targetRaw) : null;
+      const scoreKey = findKey(empRow, [metric]);
+      const scoreRaw = scoreKey ? empRow[scoreKey] : null;
+      const scoreNum = parseNumeric(scoreRaw);
+      const met = (targetNum != null && scoreNum != null) ? meetsTarget(metric, scoreNum, targetNum) : null;
+      const scoreClass = met === null ? '' : (met ? 'good' : 'bad');
+
+      const targetDisplay = (targetNum != null) ? formatDisplay(targetNum, metric) : '--';
+      const scoreDisplay = (scoreNum != null) ? formatDisplay(scoreNum, metric) : (scoreRaw ? String(scoreRaw) : '--');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="col-param">${metric}</td>
+                      <td class="col-target">${targetDisplay}</td>
+                      <td class="col-score"><span class="${scoreClass}">${scoreDisplay}</span></td>`;
       tbody.appendChild(tr);
     });
+
+    setStatus(`Prepared view for ${engineerNameEl.textContent} — ${period}`);
   }
 
-  applyBtn.onclick=()=>{const q=new URLSearchParams();q.set('id',empInput.value.trim());q.set('period',monthSelect.value);location.search=q.toString();};
-  if(initialId)await show(initialId,monthSelect.value);
+  // ---------- Export helpers ----------
+  function csvEscape(value) {
+    if (value == null) return '';
+    const s = String(value).replace(/\r?\n/g, ' ');
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function exportTableToCSV(filename = 'scorecard.csv') {
+    const rows = [];
+    const headerCells = Array.from(document.querySelectorAll('#compareTable thead th')).map(th => th.textContent.trim());
+    rows.push(headerCells.map(csvEscape).join(','));
+    const trs = Array.from(document.querySelectorAll('#compareTable tbody tr'));
+    trs.forEach(tr => {
+      const cols = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
+      rows.push(cols.map(csvEscape).join(','));
+    });
+    const csv = rows.join('\n');
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportTableToPDF(periodLabel = '') {
+    const title = document.querySelector('.card-title')?.textContent || 'Score Card';
+    const name = document.getElementById('engineerName')?.textContent || '';
+    const id = document.getElementById('engineerId')?.textContent || '';
+    const rank = document.getElementById('stackRank')?.textContent || '';
+    const tableHtml = document.getElementById('compareTable').outerHTML;
+
+    const style = `
+      <style>
+        body{font-family:Inter,Arial,Helvetica,sans-serif;color:#263238;margin:20px;}
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+        .title{font-size:20px;font-weight:700;color:${getComputedStyle(document.documentElement).getPropertyValue('--hpe-blue') || '#00739D'};}
+        table{width:100%;border-collapse:collapse;margin-top:8px;}
+        thead th{background:${getComputedStyle(document.documentElement).getPropertyValue('--hpe-blue') || '#00739D'};color:#fff;padding:8px;text-align:left;}
+        td,th{padding:8px;border:1px solid #e6eef3;}
+      </style>`;
+
+    const html = `
+      <!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${style}</head><body>
+      <div class="header">
+        <div>
+          <div class="title">${title}${periodLabel ? ' — ' + periodLabel : ''}</div>
+          <div>${name} ${id ? ' | ' + id : ''} ${rank ? ' | ' + rank : ''}</div>
+        </div>
+      </div>
+      ${tableHtml}
+      </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('Popup blocked. Please allow popups for this site to export PDF.');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      try { win.print(); } catch (e) { console.error(e); }
+    }, 600);
+  }
+
+  // ---------- Wiring ----------
+  async function boot(){
+    try {
+      const {scores, targets} = await loadAll();
+      const periodSet = new Set();
+      scores.forEach(r => {
+        const pk = findKey(r, ['Period','period']);
+        if (pk) { const v = String(r[pk]||'').trim(); if (v) periodSet.add(v); }
+      });
+      const periods = Array.from(periodSet).sort().reverse();
+      monthSelect.innerHTML = '';
+      monthSelect.appendChild(new Option('Latest',''));
+      periods.forEach(p => {
+        const [y,m] = p.split('-');
+        let label = p;
+        if (y && m && m.length) {
+          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'short', year:'numeric'}); } catch(e){}
+        }
+        monthSelect.appendChild(new Option(label,p));
+      });
+
+      if (URL_PERIOD) monthSelect.value = URL_PERIOD;
+      if (!monthSelect.value && periods.length) monthSelect.value = periods[0];
+
+      applyBtn.onclick = () => {
+        const emp = empInput.value.trim();
+        const per = monthSelect.value;
+        if (!emp) return alert('Enter Employee ID');
+        if (!per) return alert('Select Month');
+        const q = new URLSearchParams();
+        q.set('id', emp); q.set('period', per);
+        location.search = q.toString();
+      };
+
+      // handle export selection
+      exportSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        (async () => {
+          if (!val) return;
+          if (val === 'csv') {
+            const name = document.getElementById('engineerName').textContent.replace(/\s+/g,'_') || 'engineer';
+            const period = monthSelect.value || (new Date().toISOString().slice(0,7));
+            exportTableToCSV(`${name}_${period}_scorecard.csv`);
+          } else if (val === 'pdf') {
+            const periodLabel = monthSelect.options[monthSelect.selectedIndex]?.text || '';
+            exportTableToPDF(periodLabel);
+          } else if (val === 'print') {
+            window.print();
+          }
+          // reset selector to placeholder after action
+          setTimeout(()=> { exportSelect.value = ''; }, 200);
+        })();
+      });
+
+      // auto-show if id+period in URL, otherwise prompt
+      if (EMP_ID && URL_PERIOD) {
+        await showForEmployee(scores, targets, EMP_ID, URL_PERIOD);
+      } else if (EMP_ID) {
+        await showForEmployee(scores, targets, EMP_ID, monthSelect.value);
+      } else {
+        setStatus('Select month and enter Employee ID to view data.');
+      }
+
+      // allow enter key to trigger apply
+      empInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') applyBtn.click(); });
+
+    } catch (err) {
+      setStatus('Error: ' + err.message, true);
+      console.error(err);
+    }
+  }
+
+  await boot();
 })();
 </script>
 </body>

@@ -98,11 +98,21 @@
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  .top-right{text-align:right}
+  .top-left{ text-align:left }
   .engineer-name{font-weight:700;color:#0b3b4a}
-  .engineer-id{font-size:13px;color:#6b7b86}
+  .engineer-id{font-size:13px;color:#6b7b86;margin-top:4px}
+  .stack-rank{font-size:13px;color:#6b7b86;margin-top:4px}
+
+  .card-title{
+    text-align:center;
+    margin: 8px 0 14px 0;
+    font-size:20px;
+    font-weight:700;
+    color:var(--hpe-blue);
+  }
+
   .status{margin-top:8px;color:#0b6b5d}
-  table{width:100%;border-collapse:collapse;margin-top:14px}
+  table{width:100%;border-collapse:collapse;margin-top:4px}
   thead th{background:var(--hpe-blue);color:#fff;padding:12px;text-align:left;border-radius:4px}
   td,th{padding:12px;border-bottom:1px solid #eef6f9}
   .col-param{width:55%}
@@ -150,16 +160,19 @@
 
 <main>
   <div class="card" role="region" aria-label="Score Card">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-      <div>
-        <div id="status" class="status">Loading...</div>
-      </div>
-      <div class="top-right">
+    <!-- top row: left side engineer info (moved from right to left) -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div class="top-left" style="flex:1">
         <div id="engineerName" class="engineer-name">—</div>
         <div id="engineerId" class="engineer-id">ID: —</div>
-        <div id="stackRank" class="engineer-id">Stack Rank: —</div>
+        <div id="stackRank" class="stack-rank">Stack Rank: —</div>
       </div>
+      <!-- empty right side for spacing, keeps layout balanced -->
+      <div style="width:160px;flex-shrink:0"></div>
     </div>
+
+    <!-- Card title placed directly above the table -->
+    <div class="card-title">ScoreCard</div>
 
     <div id="content">
       <table id="compareTable" aria-label="Parameters comparison">
@@ -221,9 +234,10 @@
   if (EMP_ID) empInput.value = EMP_ID;
 
   function setStatus(msg, isError=false){
-    statusEl.textContent = msg;
-    statusEl.style.color = isError ? '#8b1a1a' : '#0b6b5d';
+    // status element removed visually; still keep console-friendly status via log
+    console.log('Status:', msg);
   }
+
   async function fetchJson(url){
     const r = await fetch(url, {cache:'no-store'});
     if (!r.ok) throw new Error('Failed to fetch ' + url + ' (' + r.status + ')');
@@ -262,6 +276,7 @@
     return n;
   }
 
+  // metric-aware formatting
   function formatDisplay(val, metric = '') {
     if (val == null) return '--';
     const isPercentMetric = /Onsite Response Met%|Overall SLA%|100% DA|ECASE SLA_M2M|ECASE SLA_HG/i.test(metric);
@@ -274,7 +289,7 @@
     const n = parseNumeric(val);
     if (n == null) return String(val);
     if (isPercentMetric) {
-      return (n <= 1 ? (n * 100).toFixed(2) : n.toFixed(2)) + '%';
+      return (n <= 1 ? (n * 100).toFixed(02) : n.toFixed(2)) + '%';
     }
     return n.toFixed(2);
   }
@@ -379,9 +394,6 @@
     tbody.innerHTML = '';
     missingTargetsEl.style.display = 'none';
     missingDataEl.style.display = 'none';
-    engineerNameEl.textContent = '—';
-    engineerIdEl.textContent = 'ID: —';
-    stackRankEl.textContent = 'Stack Rank: —';
 
     const rowsForPeriod = allScores.filter(r => {
       const pkey = findKey(r, ['Period','period']);
@@ -400,6 +412,7 @@
       return;
     }
 
+    // find period-level targets (optional)
     let targetRowForPeriod = allTargets.find(r => {
       const pKey = findKey(r, ['Period','period']);
       return pKey && String(r[pKey]||'').trim() === String(period).trim();
@@ -425,11 +438,13 @@
     if (myEntry) stackRankEl.textContent = 'Stack Rank: ' + myEntry.rank;
     else stackRankEl.textContent = 'Stack Rank: —';
 
+    // populate header info (now left aligned)
     const nameKey = findKey(empRow, ['Engineer Name','Name','Engineer']);
     const idKey = findKey(empRow, ['Employee ID','EmpID','EmployeeID','ID']);
     engineerNameEl.textContent = nameKey ? (empRow[nameKey] || '—') : '—';
     engineerIdEl.textContent = 'ID: ' + (idKey ? (empRow[idKey] || '—') : empId);
 
+    // populate table rows
     tbody.innerHTML = '';
     PARAMETERS.forEach(metric => {
       const targetRaw = effectiveTargets[metric];
@@ -450,12 +465,7 @@
       tbody.appendChild(tr);
     });
 
-    if (avgTotalClosed != null) {
-      const note = document.createElement('div');
-      note.className = 'avg-note';
-      note.textContent = `TOTAL CLOSED VOLUME target for ${period} = average across engineers = ${formatDisplay(avgTotalClosed, 'TOTAL CLOSED VOLUME')} (used if no explicit target provided).`;
-      document.getElementById('content').appendChild(note);
-    }
+    // NOTE: removed the avg TOTAL CLOSED VOLUME note as requested
 
     setStatus(`Showing ${engineerNameEl.textContent} — ${period}`);
   }

@@ -12,7 +12,6 @@
     --card-bg:#fff;
     --hpe-green:#01a982;
     --table-border:#e6eef3;
-    --table-outer:#cfe6ec;
   }
 
   body{
@@ -83,7 +82,7 @@
   .card{
     background:var(--card-bg);
     border-radius:14px;
-    padding:22px;
+    padding:14px;
     width:100%;
     max-width:860px;
     box-shadow:0 18px 40px rgba(10,20,30,0.08);
@@ -92,23 +91,24 @@
 
   @keyframes fadeLift{ 0%{opacity:0;transform:translateY(16px);} 100%{opacity:1;transform:translateY(0);} }
 
-  .card-title{text-align:center;margin:15px 0 14px;font-size:20px;font-weight:700;color:var(--hpe-blue);}
-  
+  /* --- Fixed alignment (no double-rounded corners) --- */
   .table-wrap {
-    border: 1px solid var(--table-outer);
-    border-radius: 8px;
-    overflow: hidden;
-    background: #fff;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
   }
 
   .table-header {
-    padding:12px 14px;
+    padding: 14px 18px;
     border-bottom: 1px solid var(--table-border);
     display:flex;
     justify-content:space-between;
     align-items:flex-start;
     gap:12px;
-    background:#ffffff;
+    background: transparent;
   }
   .table-header .left {
     display:flex;
@@ -118,14 +118,30 @@
   .table-header .left .name { font-weight:700; color:#0b3b4a; font-size:15px; }
   .table-header .left .meta { color:#6b7b86; font-size:13px; }
 
-  table{ width:100%; border-collapse:collapse; margin:0; }
+  table {
+    width:100%;
+    border-collapse:collapse;
+    margin:0;
+    background:#fff;
+  }
+
   thead th{
-    background:var(--hpe-blue); color:#fff; padding:12px; text-align:left;
-    border-bottom:1px solid var(--table-border); border-right:1px solid var(--table-border);
+    background:var(--hpe-blue);
+    color:#fff;
+    padding:12px;
+    text-align:left;
+    border-bottom:1px solid var(--table-border);
+    border-right:1px solid var(--table-border);
     font-weight:700;
   }
   thead th:last-child{ border-right:none; }
-  td,th{ padding:12px; border-right:1px solid var(--table-border); border-bottom:1px solid var(--table-border); vertical-align:middle; }
+
+  td,th{
+    padding:12px;
+    border-right:1px solid var(--table-border);
+    border-bottom:1px solid var(--table-border);
+    vertical-align:middle;
+  }
   td:last-child, th:last-child{ border-right:none; }
   tbody tr:last-child td { border-bottom:none; }
 
@@ -135,13 +151,11 @@
   .bad{color:#a12b2b;font-weight:700}
   .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
 
-  .status-box { margin-top:12px; font-size:13px; color:#445; }
-
   @media (max-width:800px){
     .controls{flex-wrap:wrap}
     .col-param{width:60%}
     .logo svg{height:28px}
-    .brand{display:none} /* hide centered brand on very small screens to avoid overlap */
+    .brand{display:none}
   }
 </style>
 </head>
@@ -149,13 +163,11 @@
 <header>
   <div class="header-left">
     <div class="logo" aria-hidden="true">
-      <!-- Inline HPE SVG you provided -->
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
       </svg>
     </div>
-    <!-- Keep brand in DOM where it was; CSS absolutely centers it -->
     <div class="brand">
       <div class="title">ASC Server Support</div>
     </div>
@@ -163,18 +175,14 @@
 
   <div class="controls">
     <label for="monthSelect">Month</label>
-    <select id="monthSelect" aria-label="Month selector"></select>
+    <select id="monthSelect"></select>
     <label for="empInput">Employee ID</label>
-    <input id="empInput" placeholder=" " />
-    <button id="apply">Go</button>
+    <input id="empInput" placeholder="eg 60154741" />
+    <button id="apply">Apply</button>
   </div>
 </header>
 
 <main>
-  
-    <div class="card" role="region" aria-label="Score Card">
-    <div class="card-title">Score Card</div>
-        
   <div class="card" role="region" aria-label="Score Card area">
     <div class="table-wrap">
       <div class="table-header">
@@ -186,7 +194,7 @@
         </div>
       </div>
 
-      <table id="compareTable" aria-label="Parameters comparison">
+      <table id="compareTable">
         <thead>
           <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
         </thead>
@@ -194,23 +202,12 @@
       </table>
     </div>
 
-    <div id="statusBox" class="status-box" aria-live="polite"></div>
     <div id="missingData" style="display:none" class="no-data"></div>
   </div>
 </main>
 
 <script>
-/*
-  Full, robust JS for the Score Card.
-  - fetches scores & targets from opensheet
-  - normalizes common sheet header formats
-  - computes stack rank
-  - displays per-employee table and in-table header (name/id/month/stack)
-  - logs helpful info to console for debugging
-*/
-
 (async function(){
-  // CONFIG
   const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
@@ -238,44 +235,29 @@
     "ECASE SLA_HG": 0.95
   };
 
-  // DOM refs
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
-  const applyBtn  = document.getElementById('apply');
-  const tbody      = document.querySelector('#compareTable tbody');
-  const nameCell   = document.getElementById('engineerNameInTable');
-  const idCell     = document.getElementById('engineerIdInTable');
-  const monthCell  = document.getElementById('engineerMonthInTable');
-  const stackCell  = document.getElementById('engineerStackInTable');
-  const statusBox  = document.getElementById('statusBox');
+  const applyBtn = document.getElementById('apply');
+  const tbody = document.querySelector('#compareTable tbody');
+  const nameCell = document.getElementById('engineerNameInTable');
+  const idCell = document.getElementById('engineerIdInTable');
+  const monthCell = document.getElementById('engineerMonthInTable');
+  const stackCell = document.getElementById('engineerStackInTable');
   const missingDataEl = document.getElementById('missingData');
 
-  // read URL params
   const params = new URLSearchParams(window.location.search);
   const initialId = (params.get('id') || '').trim();
   const initialPeriod = (params.get('period') || '').trim();
   if (initialId) empInput.value = initialId;
 
-  // utility: set textual status visible
-  function setStatus(msg, isError=false){
-    statusBox.textContent = msg;
-    statusBox.style.color = isError ? '#8b1a1a' : '#2f6b5d';
-    console.log('STATUS:', msg);
-  }
+  function setStatus(msg){ console.log('STATUS:', msg); }
 
-  // robust fetch with friendly error
   async function fetchJson(url){
-    try {
-      const res = await fetch(url, {cache: 'no-store'});
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      return await res.json();
-    } catch (err) {
-      console.error('Fetch error:', url, err);
-      throw err;
-    }
+    const res = await fetch(url, {cache: 'no-store'});
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.json();
   }
 
-  // normalize rows exported by opensheet (some sheets include title rows)
   function normalize(rows){
     if (!rows || !rows.length) return [];
     const first = rows[0];
@@ -296,7 +278,6 @@
     return rows;
   }
 
-  // find key name in row by trying exacts then fuzzy regex
   function findKey(row, names){
     if (!row) return null;
     const keys = Object.keys(row || {});
@@ -312,17 +293,14 @@
     return null;
   }
 
-  // parse numbers and percentages. Returns number (percent -> fraction)
   function parseNumeric(v){
-    if (v === null || v === undefined) return null;
+    if (v == null) return null;
     const s = String(v).trim();
     if (s === '' || s === '-') return null;
-    // percent like "90%" or "90.0 %"
     if (s.includes('%')) {
-      const num = parseFloat(s.replace('%','').replace(/,/g,''));
-      return isNaN(num) ? null : (num / 100);
+      const n = parseFloat(s.replace('%','').replace(/,/g,''));
+      return isNaN(n) ? null : n/100;
     }
-    // plain number with commas
     const n = parseFloat(s.replace(/,/g,''));
     return isNaN(n) ? null : n;
   }
@@ -330,264 +308,73 @@
   function formatDisplay(val, metric=''){
     if (val == null) return '--';
     const isPct = /Onsite Response Met%|Overall SLA%|100% DA|ECASE SLA_M2M|ECASE SLA_HG/i.test(metric);
-    if (isPct) {
-      if (typeof val === 'number') {
-        return (val <= 1 ? (val * 100).toFixed(2) : val.toFixed(2)) + '%';
-      }
-      const p = parseNumeric(val);
-      return p == null ? String(val) : (p <= 1 ? (p*100).toFixed(2) : p.toFixed(2)) + '%';
-    } else {
-      if (typeof val === 'number') return val.toFixed(2);
-      const n = parseNumeric(val);
-      return n == null ? String(val) : n.toFixed(2);
-    }
+    const n = parseNumeric(val);
+    if (isPct) return (n <= 1 ? (n*100).toFixed(2) : n.toFixed(2)) + '%';
+    return n.toFixed(2);
   }
 
-  function lowerIsBetter(metric){
-    return /ttr|ppmd|ppmc/i.test(metric);
-  }
-  function meetsTarget(metric, scoreVal, targetVal){
-    if (scoreVal == null || targetVal == null) return null;
-    return lowerIsBetter(metric) ? (scoreVal <= targetVal) : (scoreVal >= targetVal);
-  }
+  function lowerIsBetter(metric){ return /ttr|ppmd|ppmc/i.test(metric); }
+  function meetsTarget(metric, s, t){ return s==null||t==null?null:(lowerIsBetter(metric)?s<=t:s>=t); }
 
   function computeAverageTotalClosed(rows){
-    const key = rows.length ? findKey(rows[0], ['TOTAL CLOSED VOLUME','Total Closed Volume','TotalClosedVolume']) : null;
+    const key = rows.length?findKey(rows[0],['TOTAL CLOSED VOLUME']):null;
     if (!key) return null;
-    let sum = 0, count = 0;
-    rows.forEach(r => {
-      const v = parseNumeric(r[key]);
-      if (v != null) { sum += v; count++; }
-    });
-    return count ? (sum / count) : null;
+    let s=0,c=0;rows.forEach(r=>{const v=parseNumeric(r[key]);if(v!=null){s+=v;c++;}});
+    return c?s/c:null;
   }
 
-  // compute rank entries array; targetsObj maps metric -> target raw value
-  function computeRanks(rowsForPeriod, targetsObj){
-    const entries = rowsForPeriod.map(r => {
-      let met = 0, considered = 0;
-      PARAMETERS.forEach(metric => {
-        const k = findKey(r, [metric]);
-        const rawScore = k ? r[k] : null;
-        const scoreNum = parseNumeric(rawScore);
-        const tgtRaw = targetsObj ? targetsObj[metric] : null;
-        const tgtNum = (tgtRaw !== undefined && tgtRaw !== null) ? parseNumeric(tgtRaw) : null;
-        if (tgtNum === null) return; // skip metric if no target
-        considered++;
-        const ok = meetsTarget(metric, scoreNum, tgtNum);
-        if (ok === true) met++;
-      });
-      const scorePct = considered ? (met / considered) * 100 : 0;
-      const totalKey = findKey(r, ['TOTAL CLOSED VOLUME','Total Closed Volume','TOTAL_CLOSED_VOLUME']);
-      const totalClosed = totalKey ? (parseNumeric(r[totalKey]) || 0) : 0;
-      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
-      const empIdVal = idKey ? String(r[idKey] || '').trim() : '';
-      return {row: r, empId: empIdVal, met, considered, scorePct, totalClosed};
+  function computeRanks(rows,tgts){
+    const arr=rows.map(r=>{
+      let met=0,cons=0;
+      PARAMETERS.forEach(m=>{
+        const k=findKey(r,[m]);const sv=parseNumeric(k?r[k]:null);
+        const tv=parseNumeric(tgts[m]);
+        if(tv!=null){cons++;if(meetsTarget(m,sv,tv))met++;}});
+      const pct=cons?(met/cons)*100:0;
+      const tkey=findKey(r,['TOTAL CLOSED VOLUME']);const tc=parseNumeric(r[tkey])||0;
+      const idk=findKey(r,['Employee ID','EmpID','ID']);const eid=idk?String(r[idk]).trim():'';
+      return{row:r,empId:eid,scorePct:pct,totalClosed:tc};
     });
-
-    // sort descending by scorePct then totalClosed
-    entries.sort((a,b) => {
-      if (b.scorePct !== a.scorePct) return b.scorePct - a.scorePct;
-      return b.totalClosed - a.totalClosed;
-    });
-
-    // assign ranks; ties get same rank
-    let prevScore = null, rank = 0;
-    entries.forEach((e,i) => {
-      if (prevScore === null || e.scorePct !== prevScore) rank = i + 1;
-      e.rank = rank;
-      prevScore = e.scorePct;
-    });
-    return entries;
+    arr.sort((a,b)=>(b.scorePct-a.scorePct)||b.totalClosed-a.totalClosed);
+    let prev=null,rank=0;arr.forEach((e,i)=>{if(prev===null||e.scorePct!==prev)rank=i+1;e.rank=rank;prev=e.scorePct;});
+    return arr;
   }
 
-  // load sheets and normalize
-  async function loadAll(){
-    setStatus('Loading data...');
-    try {
-      const [rawScores, rawTargets] = await Promise.all([
-        fetchJson(URL_SCORES).catch(err => { console.warn('scores fetch failed', err); return []; }),
-        fetchJson(URL_TARGETS).catch(err => { console.warn('targets fetch failed', err); return []; })
-      ]);
-      const scores = normalize(rawScores || []);
-      const targets = normalize(rawTargets || []);
-      setStatus(`Loaded ${scores.length} score rows.`);
-      return {scores, targets};
-    } catch (err) {
-      setStatus('Failed to load sheets: ' + (err && err.message || err), true);
-      throw err;
-    }
+  async function showForEmployee(scores,targets,id,period){
+    tbody.innerHTML='';missingDataEl.style.display='none';
+    const rows=scores.filter(r=>String(r[findKey(r,['Period'])]||'').trim()===String(period));
+    if(!rows.length){missingDataEl.style.display='block';missingDataEl.textContent=`No data for ${period}`;return;}
+    const emp=rows.find(r=>String(r[findKey(r,['Employee ID','EmpID','ID'])]||'').trim()===id);
+    if(!emp){missingDataEl.style.display='block';missingDataEl.textContent=`No record for ${id}`;return;}
+    const targetRow=targets.find(r=>String(r[findKey(r,['Period'])]||'').trim()===period);
+    const avg=computeAverageTotalClosed(rows);
+    const eff={};PARAMETERS.forEach(m=>{eff[m]=targetRow?targetRow[findKey(targetRow,[m])]||FALLBACK_TARGETS[m]:(m==='TOTAL CLOSED VOLUME'?avg:FALLBACK_TARGETS[m]);});
+    const ranks=computeRanks(rows,eff);const me=ranks.find(e=>e.empId===id);
+    nameCell.textContent=emp[findKey(emp,['Engineer Name','Name'])]||'—';
+    idCell.textContent='ID: '+id;
+    monthCell.textContent='Month: '+period;
+    stackCell.textContent='Stack Rank: '+(me?me.rank:'—');
+    PARAMETERS.forEach(m=>{
+      const tr=document.createElement('tr');
+      const tv=parseNumeric(eff[m]);
+      const sv=parseNumeric(emp[findKey(emp,[m])]);
+      const ok=meetsTarget(m,sv,tv);
+      tr.innerHTML=`<td>${m}</td><td>${formatDisplay(tv,m)}</td><td class="${ok===null?'':ok?'good':'bad'}">${formatDisplay(sv,m)}</td>`;
+      tbody.appendChild(tr);
+    });
   }
 
-  // show one employee for a period
-  async function showForEmployee(allScores, allTargets, empId, period){
-    try {
-      tbody.innerHTML = '';
-      missingDataEl.style.display = 'none';
-      setStatus('Preparing view...');
-      // rows that match period (be robust: Period or period)
-      const rowsForPeriod = allScores.filter(r => {
-        const pKey = findKey(r, ['Period','period']);
-        if (!pKey) return false;
-        return String(r[pKey] || '').trim() === String(period).trim();
-      });
-
-      if (!rowsForPeriod.length) {
-        missingDataEl.style.display = 'block';
-        missingDataEl.textContent = `No rows found for period ${period}`;
-        setStatus('No data for selected period', true);
-        // clear header
-        nameCell.textContent = '—'; idCell.textContent='ID: —'; monthCell.textContent='Month: —'; stackCell.textContent='Stack Rank: —';
-        return;
-      }
-
-      const empRow = rowsForPeriod.find(r => {
-        const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
-        return idKey && String(r[idKey] || '').trim() === String(empId).trim();
-      });
-
-      if (!empRow) {
-        missingDataEl.style.display = 'block';
-        missingDataEl.textContent = `No row found for employee ${empId} in ${period}`;
-        setStatus('Employee not found', true);
-        nameCell.textContent = '—'; idCell.textContent='ID: —'; monthCell.textContent='Month: —'; stackCell.textContent='Stack Rank: —';
-        return;
-      }
-
-      // determine effective targets (period-level -> fallback -> null)
-      const targetRowForPeriod = allTargets && allTargets.length ? allTargets.find(r=>{
-        const pKey = findKey(r, ['Period','period']); if(!pKey) return false;
-        return String(r[pKey] || '').trim() === String(period).trim();
-      }) : null;
-
-      const avgTotalClosed = computeAverageTotalClosed(rowsForPeriod);
-      const effectiveTargets = {};
-      PARAMETERS.forEach(metric => {
-        if (targetRowForPeriod) {
-          const k = findKey(targetRowForPeriod, [metric]);
-          if (k) { effectiveTargets[metric] = targetRowForPeriod[k]; return; }
-        }
-        if (metric === 'TOTAL CLOSED VOLUME') {
-          effectiveTargets[metric] = avgTotalClosed != null ? avgTotalClosed : null;
-          return;
-        }
-        if (FALLBACK_TARGETS[metric] !== undefined) {
-          effectiveTargets[metric] = FALLBACK_TARGETS[metric];
-          return;
-        }
-        effectiveTargets[metric] = null;
-      });
-
-      // compute ranking and fetch my rank
-      const rankingEntries = computeRanks(rowsForPeriod, effectiveTargets);
-      const myEntry = rankingEntries.find(e => String(e.empId) === String(empId));
-      const myRankLabel = myEntry ? myEntry.rank : '—';
-
-      // fill in the in-table header
-      const nameKey = findKey(empRow, ['Engineer Name','Name','Engineer']);
-      const idKey = findKey(empRow, ['Employee ID','EmpID','EmployeeID','ID']);
-      nameCell.textContent = nameKey ? (empRow[nameKey] || '—') : '—';
-      idCell.textContent = 'ID: ' + (idKey ? (empRow[idKey] || '—') : empId);
-
-      // show month label from UI select if possible, otherwise raw period
-      const monthLabel = (monthSelect.options[monthSelect.selectedIndex] && monthSelect.options[monthSelect.selectedIndex].text) ? monthSelect.options[monthSelect.selectedIndex].text : period;
-      monthCell.textContent = 'Month: ' + (monthLabel || '--');
-      stackCell.textContent = 'Stack Rank: ' + myRankLabel;
-
-      // build rows
-      tbody.innerHTML = '';
-      PARAMETERS.forEach(metric => {
-        const targetRaw = effectiveTargets[metric];
-        const targetNum = targetRaw != null ? parseNumeric(targetRaw) : null;
-        const scoreKey = findKey(empRow, [metric]);
-        const scoreRaw = scoreKey ? empRow[scoreKey] : null;
-        const scoreNum = parseNumeric(scoreRaw);
-        const ok = (targetNum != null && scoreNum != null) ? meetsTarget(metric, scoreNum, targetNum) : null;
-        const scoreClass = ok === null ? '' : (ok ? 'good' : 'bad');
-
-        const targetDisplay = (targetNum != null) ? formatDisplay(targetNum, metric) : '--';
-        const scoreDisplay = (scoreNum != null) ? formatDisplay(scoreNum, metric) : (scoreRaw ? String(scoreRaw) : '--');
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="col-param">${metric}</td>
-                        <td class="col-target">${targetDisplay}</td>
-                        <td class="col-score"><span class="${scoreClass}">${scoreDisplay}</span></td>`;
-        tbody.appendChild(tr);
-      });
-
-      setStatus(`Showing ${nameCell.textContent} — ${period}`);
-    } catch (err) {
-      console.error('showForEmployee error', err);
-      setStatus('Error preparing view: ' + (err && err.message), true);
-    }
-  }
-
-  // boot: load data, populate month dropdown, wire apply
   async function boot(){
-    try {
-      const {scores, targets} = await loadAll();
-
-      // gather periods (normalize key names)
-      const periodSet = new Set();
-      scores.forEach(r => {
-        const pk = findKey(r, ['Period','period']);
-        if (pk) {
-          const v = String(r[pk] || '').trim();
-          if (v) periodSet.add(v);
-        }
-      });
-      const periods = Array.from(periodSet).sort().reverse();
-
-      monthSelect.innerHTML = '';
-      monthSelect.appendChild(new Option('Latest', ''));
-      periods.forEach(p => {
-        // create a human-friendly label if p looks like "2024-11"
-        let label = p;
-        const parts = String(p).split('-');
-        if (parts.length >= 2 && /^\d{4}$/.test(parts[0]) && /^\d{1,2}$/.test(parts[1])) {
-          try {
-            const dt = new Date(`${parts[0]}-${String(parts[1]).padStart(2,'0')}-01`);
-            label = dt.toLocaleString('default', { month:'short', year:'numeric' });
-          } catch(e) { /* ignore formatting error */ }
-        }
-        monthSelect.appendChild(new Option(label, p));
-      });
-
-      // preselect URL period if passed, otherwise choose first available
-      if (initialPeriod) monthSelect.value = initialPeriod;
-      if (!monthSelect.value && periods.length) monthSelect.value = periods[0];
-
-      applyBtn.addEventListener('click', () => {
-        const emp = empInput.value.trim();
-        const per = monthSelect.value;
-        if (!emp) return alert('Enter Employee ID');
-        if (!per) return alert('Select Month');
-        const q = new URLSearchParams();
-        q.set('id', emp);
-        q.set('period', per);
-        location.search = q.toString();
-      });
-
-      // if id present in URL, show automatically
-      if (initialId && (initialPeriod || monthSelect.value)) {
-        const per = initialPeriod || monthSelect.value;
-        await showForEmployee(scores, targets, initialId, per);
-      } else {
-        setStatus('Select month and enter Employee ID to view data.');
-      }
-
-      // pressing Enter in input triggers apply
-      empInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') applyBtn.click(); });
-
-    } catch (err) {
-      console.error('boot error', err);
-      setStatus('Initialization error: ' + (err && err.message), true);
-    }
+    const {scores,targets}=await loadAll();
+    const periods=[...new Set(scores.map(r=>r[findKey(r,['Period'])]).filter(Boolean))].sort().reverse();
+    monthSelect.innerHTML='';periods.forEach(p=>monthSelect.appendChild(new Option(p,p)));
+    monthSelect.value=initialPeriod||periods[0];
+    applyBtn.onclick=()=>{const q=new URLSearchParams();q.set('id',empInput.value.trim());q.set('period',monthSelect.value);location.search=q.toString();};
+    if(initialId)await showForEmployee(scores,targets,initialId,monthSelect.value);
   }
 
-  // start
+  async function loadAll(){return{scores:normalize(await fetchJson(URL_SCORES)),targets:normalize(await fetchJson(URL_TARGETS))};}
   await boot();
-
 })();
 </script>
 </body>

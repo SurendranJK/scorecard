@@ -11,6 +11,7 @@
     --bg:#f4f7f8;
     --card-bg:#fff;
     --hpe-green:#01a982;
+    --table-border:#d0dde4;
   }
 
   body{
@@ -43,11 +44,7 @@
     gap:10px;
   }
 
-  .logo svg{
-    height:34px;
-    width:auto;
-    display:block;
-  }
+  .logo svg{ height:34px; width:auto; display:block; }
 
   .brand{
     line-height:1.2;
@@ -56,10 +53,6 @@
     font-weight:700;
     color:var(--hpe-blue);
     font-size:18px;
-  }
-  .brand .subtitle{
-    font-size:12px;
-    color:#6b7b86;
   }
 
   .controls{
@@ -73,6 +66,8 @@
     border-radius:8px;
     border:1px solid #dfeff3;
     background:white;
+    font-family:inherit;
+    font-size:14px;
   }
 
   button{
@@ -82,6 +77,8 @@
     background:var(--hpe-blue);
     color:white;
     cursor:pointer;
+    font-family:inherit;
+    font-size:14px;
   }
 
   button.small{
@@ -89,13 +86,22 @@
     font-size:13px;
   }
 
-  .export-select{
-    padding:8px;
-    border-radius:8px;
-    border:1px solid #dfeff3;
-    background:white;
-    cursor:pointer;
+  /* make export select look like Go button (text-only) */
+  .export-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: var(--hpe-blue);
+    color: #fff;
+    border: 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
   }
+  /* small dropdown caret style removed (clean button look) */
+  .export-select option { color: #333; }
 
   main{
     max-width:900px;
@@ -125,14 +131,51 @@
 
   .engineer-name{font-weight:700;color:#0b3b4a}
   .engineer-id,.stack-rank{font-size:13px;color:#6b7b86;margin-top:4px}
-  .card-title{text-align:center;margin:10px 0 14px;font-size:20px;font-weight:700;color:var(--hpe-blue);}
-  table{width:100%;border-collapse:collapse;margin-top:4px}
-  thead th{background:var(--hpe-blue);color:#fff;padding:12px;text-align:left}
-  td,th{padding:12px;border-bottom:1px solid #eef6f9}
-  .col-param{width:55%}
-  .col-target,.col-score{width:22%;text-align:right}
+
+  /* Title now above the Name */
+  .card-title{
+    text-align:center;
+    margin:0 0 12px 0;
+    font-size:20px;
+    font-weight:700;
+    color:var(--hpe-blue);
+  }
+
+  .card-header {
+    margin-bottom:12px;
+    padding:8px 4px;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:4px;
+    background:#fff;
+    border:2px solid var(--table-border); /* outer border */
+  }
+
+  thead th{
+    background:var(--hpe-blue);
+    color:#fff;
+    padding:12px;
+    text-align:center; /* header titles centered */
+    vertical-align:middle;
+    border:1px solid var(--table-border); /* inner borders for header cells */
+    font-weight:700;
+  }
+
+  td,th{
+    padding:12px;
+    border:1px solid var(--table-border); /* inner borders for all cells */
+    vertical-align:middle;
+  }
+
+  .col-param{width:55%; text-align:left;}
+  .col-target,.col-score{width:22%; text-align:center;}
+
   .good{color:#0b7a3a;font-weight:700}
   .bad{color:#a12b2b;font-weight:700}
+
   .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
 
   @media (max-width:800px){
@@ -146,8 +189,8 @@
 <header>
   <div class="header-left">
     <div class="logo" aria-hidden="true">
-      <!-- Official HPE SVG provided by you (embedded inline) -->
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" xmlns:v="https://vecta.io/nano" role="img" aria-label="HPE logo">
+      <!-- I left the inline SVG here in case you want it in header; it doesn't affect Export control -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
       </svg>
@@ -164,10 +207,9 @@
     <input id="empInput" placeholder="" />
     <button id="apply">Go</button>
 
-    <!-- single export dropdown -->
-    <label for="exportSelect" style="display:none">Export</label>
+    <!-- Export select styled like Go button (no logo) -->
     <select id="exportSelect" class="export-select" aria-label="Export options">
-      <option value="">Export ▾</option>
+      <option value="">Export</option>
       <option value="csv">Export CSV</option>
       <option value="pdf">Export PDF</option>
       <option value="print">Print</option>
@@ -177,20 +219,25 @@
 
 <main>
   <div class="card" role="region" aria-label="Score Card">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-      <div style="flex:1">
-        <div id="engineerName" class="engineer-name">—</div>
-        <div id="engineerId" class="engineer-id">ID: —</div>
-        <div id="stackRank" class="stack-rank">Stack Rank: —</div>
-      </div>
-    </div>
 
+    <!-- Score Card title above the Name -->
     <div class="card-title">Score Card</div>
+
+    <!-- Name / ID / Stack appear below title -->
+    <div class="card-header">
+      <div id="engineerName" class="engineer-name">—</div>
+      <div id="engineerId" class="engineer-id">ID: —</div>
+      <div id="stackRank" class="stack-rank">Stack Rank: —</div>
+    </div>
 
     <div id="content">
       <table id="compareTable" aria-label="Parameters comparison">
         <thead>
-          <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
+          <tr>
+            <th class="col-param">Parameters</th>
+            <th class="col-target">Target</th>
+            <th class="col-score">Score</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -208,7 +255,7 @@
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
 
-  // parameters considered for ranking and display
+  // parameters considered for ranking and display (unchanged)
   const PARAMETERS = [
     "Onsite Response Met%",
     "Overall SLA%",
@@ -221,7 +268,7 @@
     "ECASE SLA_HG"
   ];
 
-  // fallback targets if targets sheet doesn't provide them
+  // fallback targets (unchanged)
   const FALLBACK_TARGETS = {
     "Onsite Response Met%": 0.90,
     "Overall SLA%": 0.99,
@@ -250,7 +297,6 @@
   const URL_PERIOD = (params.get('period') || '').trim();
   if (EMP_ID) empInput.value = EMP_ID;
 
-  // small status helper (logs to console so UI remains clean)
   function setStatus(msg, isError=false){
     console.log('Status:', msg);
   }
@@ -481,7 +527,7 @@
     setStatus(`Prepared view for ${engineerNameEl.textContent} — ${period}`);
   }
 
-  // ---------- Export helpers ----------
+  // ---------- Export helpers (CSV / PDF / Print) ----------
   function csvEscape(value) {
     if (value == null) return '';
     const s = String(value).replace(/\r?\n/g, ' ');
@@ -549,9 +595,7 @@
     win.document.write(html);
     win.document.close();
     win.focus();
-    setTimeout(() => {
-      try { win.print(); } catch (e) { console.error(e); }
-    }, 600);
+    setTimeout(() => { try { win.print(); } catch (e) { console.error(e); } }, 600);
   }
 
   // ---------- Wiring ----------

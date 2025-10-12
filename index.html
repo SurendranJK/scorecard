@@ -360,9 +360,62 @@
     setStatus(`Showing ${engineerNameEl.textContent} — ${period}`);
   }
 
-  async function boot(){
+    async function boot(){
     try {
-      const {scores, targets} = await loadAll();
+      const {scores, targets} = await (async ()=>{
+        try {
+          const [s,t] = await Promise.all([fetchJson(URL_SCORES), fetchJson(URL_TARGETS)]);
+          return {scores: normalize(s||[]), targets: normalize(t||[])};
+        } catch(e) {
+          const s = await fetchJson(URL_SCORES);
+          return {scores: normalize(s||[]), targets: []};
+        }
+      })();
+
+      // populate months
       const periodSet = new Set();
       scores.forEach(r => {
-        const pk = findKey
+        const pk = findKey(r, ['Period','period']);
+        if (pk) { const v = String(r[pk]||'').trim(); if (v) periodSet.add(v); }
+      });
+      const periods = Array.from(periodSet).sort().reverse();
+      monthSelect.innerHTML = '';
+      monthSelect.appendChild(new Option('Latest',''));
+      periods.forEach(p => {
+        const [y,m] = p.split('-');
+        let label = p;
+        if (y && m && m.length) {
+          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'long'}) + ' ' + y; } catch(e){}
+        }
+        monthSelect.appendChild(new Option(label,p));
+      });
+
+      if (URL_PERIOD) monthSelect.value = URL_PERIOD;
+      if (!monthSelect.value && periods.length) monthSelect.value = periods[0];
+
+      applyBtn.onclick = () => {
+        const emp = empInput.value.trim();
+        const per = monthSelect.value;
+        if (!emp) return alert('Enter Employee ID');
+        if (!per) return alert('Select Month');
+        const q = new URLSearchParams();
+        q.set('id', emp); q.set('period', per);
+        location.search = q.toString();
+      };
+
+      if (empInput.value.trim()) {
+        await showForEmployee(scores, targets, empInput.value.trim(), monthSelect.value);
+      } else {
+        setStatus('Select month and enter Employee ID to view data.');
+      }
+    } catch (err) {
+      setStatus('Error: ' + err.message, true);
+      console.error(err);
+    }
+  }
+
+  await boot();
+})();
+</script>
+</body>
+</html>

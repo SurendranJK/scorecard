@@ -89,6 +89,14 @@
     font-size:13px;
   }
 
+  .export-select{
+    padding:8px;
+    border-radius:8px;
+    border:1px solid #dfeff3;
+    background:white;
+    cursor:pointer;
+  }
+
   main{
     max-width:900px;
     margin:0 auto;
@@ -155,9 +163,15 @@
     <label for="empInput">Employee ID</label>
     <input id="empInput" placeholder=" " />
     <button id="apply">Go</button>
-    <button id="print" class="small">Print</button>
-    <button id="exportCsv" class="small" title="Download CSV">Export CSV</button>
-    <button id="exportPdf" class="small" title="Export PDF">Export PDF</button>
+
+    <!-- single export dropdown -->
+    <label for="exportSelect" style="display:none">Export</label>
+    <select id="exportSelect" class="export-select" aria-label="Export options">
+      <option value="">Export ▾</option>
+      <option value="csv">Export CSV</option>
+      <option value="pdf">Export PDF</option>
+      <option value="print">Print</option>
+    </select>
   </div>
 </header>
 
@@ -223,16 +237,13 @@
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
   const applyBtn = document.getElementById('apply');
+  const exportSelect = document.getElementById('exportSelect');
   const engineerNameEl = document.getElementById('engineerName');
   const engineerIdEl = document.getElementById('engineerId');
   const stackRankEl = document.getElementById('stackRank');
   const tbody = document.querySelector('#compareTable tbody');
   const missingTargetsEl = document.getElementById('missingTargets');
   const missingDataEl = document.getElementById('missingData');
-
-  const printBtn = document.getElementById('print');
-  const exportCsvBtn = document.getElementById('exportCsv');
-  const exportPdfBtn = document.getElementById('exportPdf');
 
   const params = new URLSearchParams(window.location.search);
   let EMP_ID = (params.get('id') || '').trim();
@@ -471,8 +482,6 @@
   }
 
   // ---------- Export helpers ----------
-
-  // CSV escape helper
   function csvEscape(value) {
     if (value == null) return '';
     const s = String(value).replace(/\r?\n/g, ' ');
@@ -482,13 +491,10 @@
     return s;
   }
 
-  // Export current table to CSV (filename optional)
   function exportTableToCSV(filename = 'scorecard.csv') {
     const rows = [];
-    // header
     const headerCells = Array.from(document.querySelectorAll('#compareTable thead th')).map(th => th.textContent.trim());
     rows.push(headerCells.map(csvEscape).join(','));
-    // body
     const trs = Array.from(document.querySelectorAll('#compareTable tbody tr'));
     trs.forEach(tr => {
       const cols = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
@@ -506,9 +512,7 @@
     URL.revokeObjectURL(url);
   }
 
-  // Create a printable HTML for PDF export (simple)
   function exportTableToPDF(periodLabel = '') {
-    // build a minimal HTML containing the card content
     const title = document.querySelector('.card-title')?.textContent || 'Score Card';
     const name = document.getElementById('engineerName')?.textContent || '';
     const id = document.getElementById('engineerId')?.textContent || '';
@@ -536,7 +540,6 @@
       ${tableHtml}
       </body></html>`;
 
-    // open new window and print
     const win = window.open('', '_blank');
     if (!win) {
       alert('Popup blocked. Please allow popups for this site to export PDF.');
@@ -545,16 +548,13 @@
     win.document.open();
     win.document.write(html);
     win.document.close();
-    // Wait a bit for content to render then trigger print
     win.focus();
     setTimeout(() => {
       try { win.print(); } catch (e) { console.error(e); }
-      // Optionally close after printing (commented out to let user decide)
-      // win.close();
     }, 600);
   }
 
-  // ---------- Boot / UI wiring ----------
+  // ---------- Wiring ----------
   async function boot(){
     try {
       const {scores, targets} = await loadAll();
@@ -588,40 +588,38 @@
         location.search = q.toString();
       };
 
-      // Print current page
-      printBtn.addEventListener('click', () => {
-        window.print();
+      // handle export selection
+      exportSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        // reset selector to placeholder after action
+        (async () => {
+          if (!val) return;
+          if (val === 'csv') {
+            const name = document.getElementById('engineerName').textContent.replace(/\s+/g,'_') || 'engineer';
+            const period = monthSelect.value || (new Date().toISOString().slice(0,7));
+            exportTableToCSV(`${name}_${period}_scorecard.csv`);
+          } else if (val === 'pdf') {
+            const periodLabel = monthSelect.options[monthSelect.selectedIndex]?.text || '';
+            exportTableToPDF(periodLabel);
+          } else if (val === 'print') {
+            window.print();
+          }
+          // small delay so user sees selection change (optional)
+          setTimeout(()=> { exportSelect.value = ''; }, 200);
+        })();
       });
 
-      // Export CSV
-      exportCsvBtn.addEventListener('click', () => {
-        // Build filename from name & period
-        const name = document.getElementById('engineerName').textContent.replace(/\s+/g,'_') || 'engineer';
-        const period = monthSelect.value || (new Date().toISOString().slice(0,7));
-        const filename = `${name}_${period}_scorecard.csv`;
-        exportTableToCSV(filename);
-      });
-
-      // Export PDF (via print window)
-      exportPdfBtn.addEventListener('click', () => {
-        const periodLabel = monthSelect.options[monthSelect.selectedIndex]?.text || '';
-        exportTableToPDF(periodLabel);
-      });
-
-      // If URL contains id & period, auto-show
+      // auto-show if id+period in URL, otherwise prompt
       if (EMP_ID && URL_PERIOD) {
         await showForEmployee(scores, targets, EMP_ID, URL_PERIOD);
       } else if (EMP_ID) {
-        // if only id provided, but not period, pick current selection
         await showForEmployee(scores, targets, EMP_ID, monthSelect.value);
       } else {
         setStatus('Select month and enter Employee ID to view data.');
       }
 
-      // allow pressing Enter on emp input to trigger apply
-      empInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') applyBtn.click();
-      });
+      // allow enter key to trigger apply
+      empInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') applyBtn.click(); });
 
     } catch (err) {
       setStatus('Error: ' + err.message, true);

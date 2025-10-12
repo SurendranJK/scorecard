@@ -22,22 +22,46 @@
     -moz-osx-font-smoothing:grayscale;
   }
 
-  /* header */
+  /* header - centered brand, controls on right */
   header{
     position:fixed;
     top:0;
     left:0;
     right:0;
     display:flex;
-    justify-content:space-between;
+    justify-content:center;      /* center overall header contents */
     align-items:center;
     padding:18px 28px;
     background:#fff;
     box-shadow:0 4px 16px rgba(0,0,0,0.05);
     z-index:30;
+    gap:20px;
   }
-  .brand .title{font-weight:700;color:var(--hpe-blue);font-size:20px}
-  .controls{display:flex;gap:10px;align-items:center}
+
+  .brand{
+    text-align:center;
+    flex:1;                      /* take available center area */
+  }
+  .brand .title{
+    font-weight:700;
+    color:var(--hpe-blue);
+    font-size:20px;
+    margin-bottom:2px;
+  }
+  .brand .subtitle{
+    font-size:13px;
+    color:#6b7b86;
+    margin-top:2px;
+  }
+
+  .controls{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:flex-end;
+    flex:1;                      /* push controls to right */
+  }
+
   select,input{padding:8px;border-radius:8px;border:1px solid #dfeff3;background:white}
   button{padding:8px 10px;border-radius:8px;border:0;background:var(--hpe-blue);color:white;cursor:pointer}
 
@@ -87,15 +111,24 @@
   .bad{color:#a12b2b;font-weight:700}
   .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
   .avg-note{margin-top:10px;font-size:13px;color:#4d6a6f}
+
   @media (max-width:900px){
     header{padding:12px 14px}
     main{padding:18px}
     .card{padding:16px}
   }
+
+  /* mobile: stack brand above controls and center */
   @media (max-width:600px){
-    .controls{flex-wrap:wrap}
+    header{
+      flex-direction:column;
+      align-items:center;
+      gap:6px;
+    }
+    .brand{order:0; flex:none}
+    .controls{order:1; width:100%; justify-content:center; flex-wrap:wrap; gap:8px}
+    .controls label{display:none} /* save space on small screens */
     .col-param{width:60%}
-    header{flex-direction:column;align-items:flex-start;gap:8px}
   }
 </style>
 </head>

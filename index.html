@@ -121,14 +121,20 @@
   .good{color:#0b7a3a;font-weight:700}
   .bad{color:#a12b2b;font-weight:700}
   .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
+
+  @media (max-width:800px){
+    .controls{flex-wrap:wrap}
+    .col-param{width:60%}
+    .logo svg{height:28px}
+  }
 </style>
 </head>
 <body>
 <header>
   <div class="header-left">
     <div class="logo" aria-hidden="true">
-      <!-- ✅ Official HPE SVG logo inline -->
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" xmlns:v="https://vecta.io/nano">
+      <!-- Official HPE SVG provided by you (embedded inline) -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" xmlns:v="https://vecta.io/nano" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
       </svg>
@@ -140,16 +146,16 @@
   </div>
 
   <div class="controls">
-    <label>Month</label>
+    <label for="monthSelect">Month</label>
     <select id="monthSelect"></select>
-    <label>Employee ID</label>
+    <label for="empInput">Employee ID</label>
     <input id="empInput" placeholder="eg 60154741" />
     <button id="apply">Apply</button>
   </div>
 </header>
 
 <main>
-  <div class="card">
+  <div class="card" role="region" aria-label="Score Card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
       <div style="flex:1">
         <div id="engineerName" class="engineer-name">—</div>
@@ -161,21 +167,363 @@
     <div class="card-title">ScoreCard</div>
 
     <div id="content">
-      <table id="compareTable">
+      <table id="compareTable" aria-label="Parameters comparison">
         <thead>
           <tr><th class="col-param">Parameters</th><th class="col-target">Target</th><th class="col-score">Score</th></tr>
         </thead>
         <tbody></tbody>
       </table>
+
       <div id="missingTargets" style="display:none" class="no-data"></div>
       <div id="missingData" style="display:none" class="no-data"></div>
     </div>
   </div>
 </main>
 
-<!-- ✅ your JS section remains same -->
 <script>
-// same JavaScript code from your working version goes here
+(async function(){
+  // --- Sheet config ---
+  const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
+  const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
+  const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
+
+  // parameters considered for ranking and display
+  const PARAMETERS = [
+    "Onsite Response Met%",
+    "Overall SLA%",
+    "TOTAL CLOSED VOLUME",
+    "TTR Hours(Official)",
+    "100% DA",
+    "PPMD",
+    "PPMC",
+    "ECASE SLA_M2M",
+    "ECASE SLA_HG"
+  ];
+
+  // fallback targets if targets sheet doesn't provide them
+  const FALLBACK_TARGETS = {
+    "Onsite Response Met%": 0.90,
+    "Overall SLA%": 0.99,
+    "TTR Hours(Official)": 30,
+    "100% DA": 0.92,
+    "PPMD": 1.13,
+    "PPMC": 1.13,
+    "ECASE SLA_M2M": 0.97,
+    "ECASE SLA_HG": 0.95
+  };
+
+  // DOM refs
+  const monthSelect = document.getElementById('monthSelect');
+  const empInput = document.getElementById('empInput');
+  const applyBtn = document.getElementById('apply');
+  const engineerNameEl = document.getElementById('engineerName');
+  const engineerIdEl = document.getElementById('engineerId');
+  const stackRankEl = document.getElementById('stackRank');
+  const tbody = document.querySelector('#compareTable tbody');
+  const missingTargetsEl = document.getElementById('missingTargets');
+  const missingDataEl = document.getElementById('missingData');
+
+  const params = new URLSearchParams(window.location.search);
+  let EMP_ID = (params.get('id') || '').trim();
+  const URL_PERIOD = (params.get('period') || '').trim();
+  if (EMP_ID) empInput.value = EMP_ID;
+
+  // small status helper (logs to console so UI remains clean)
+  function setStatus(msg, isError=false){
+    console.log('Status:', msg);
+  }
+
+  async function fetchJson(url){
+    const r = await fetch(url, {cache:'no-store'});
+    if (!r.ok) throw new Error('Failed to fetch ' + url + ' (' + r.status + ')');
+    return r.json();
+  }
+
+  // Some Sheets exported by OpenSheet have a title row; normalize to usable rows
+  function normalize(rows){
+    if (!rows || !rows.length) return [];
+    const firstKeys = Object.keys(rows[0]||{}).map(k=>String(k).trim());
+    const looksLikeTitle = firstKeys.length === 1 || firstKeys.every(k => /^[\d\W]+$/.test(k) || k.length < 4);
+    if (looksLikeTitle && rows.length > 1) {
+      const headers = Object.values(rows[1]).map(v => String(v||'').trim());
+      const dataRows = rows.slice(2);
+      if (headers.every(h => h)) {
+        return dataRows.map(r => {
+          const vals = Object.values(r);
+          const obj = {};
+          headers.forEach((h,i)=> obj[h] = vals[i] ?? '');
+          return obj;
+        });
+      }
+    }
+    return rows;
+  }
+
+  // parse number or percent (returns numeric; percents -> fraction)
+  function parseNumeric(v){
+    if (v == null || v === '') return null;
+    const s = String(v).trim();
+    if (s === '-') return null;
+    if (s.includes('%')) {
+      const n = parseFloat(s.replace('%','').replace(/,/g,''));
+      return isNaN(n) ? null : n/100;
+    }
+    const n = parseFloat(s.replace(/,/g,''));
+    if (isNaN(n)) return null;
+    return n;
+  }
+
+  // metric-aware formatting (numbers vs percentages)
+  function formatDisplay(val, metric = '') {
+    if (val == null) return '--';
+    const isPercentMetric = /Onsite Response Met%|Overall SLA%|100% DA|ECASE SLA_M2M|ECASE SLA_HG/i.test(metric);
+    if (typeof val === 'number') {
+      if (isPercentMetric) {
+        return (val <= 1 ? (val * 100).toFixed(2) : val.toFixed(2)) + '%';
+      }
+      return val.toFixed(2);
+    }
+    const n = parseNumeric(val);
+    if (n == null) return String(val);
+    if (isPercentMetric) {
+      return (n <= 1 ? (n * 100).toFixed(2) : n.toFixed(2)) + '%';
+    }
+    return n.toFixed(2);
+  }
+
+  // find key in row object by list of possible names (case-insensitive + fuzzy)
+  function findKey(obj, names){
+    const keys = Object.keys(obj||{});
+    for (const n of names){
+      const exact = keys.find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
+      if (exact) return exact;
+    }
+    for (const n of names){
+      const re = new RegExp(n.replace(/[%()]/g,'\\$&'),'i');
+      const found = keys.find(k => re.test(k));
+      if (found) return found;
+    }
+    return null;
+  }
+
+  // metrics where lower is better
+  function lowerIsBetter(metric){
+    return /ttr|ppmd|ppmc/i.test(metric);
+  }
+
+  // compare score vs target
+  function meetsTarget(metric, scoreVal, targetVal){
+    if (scoreVal == null || targetVal == null) return null;
+    return lowerIsBetter(metric) ? (scoreVal <= targetVal) : (scoreVal >= targetVal);
+  }
+
+  function computeAverageTotalClosed(rowsForPeriod) {
+    const key = rowsForPeriod.length ? findKey(rowsForPeriod[0], ['TOTAL CLOSED VOLUME','Total Closed Volume','TotalClosedVolume']) : null;
+    if (!key) return null;
+    let sum = 0, count = 0;
+    rowsForPeriod.forEach(r => {
+      const v = parseNumeric(r[key]);
+      if (v != null) { sum += v; count++; }
+    });
+    return count ? (sum / count) : null;
+  }
+
+  // compute stack ranks using considered metrics (includes TOTAL CLOSED VOLUME)
+  function computeRanks(rowsForPeriod, effectiveTargets){
+    const entries = rowsForPeriod.map(r => {
+      let met = 0, considered = 0;
+      PARAMETERS.forEach(metric => {
+        const k = findKey(r, [metric]);
+        const scoreRaw = k ? r[k] : null;
+        const scoreNum = parseNumeric(scoreRaw);
+        const tgtRaw = effectiveTargets[metric];
+        const tgtNum = (tgtRaw !== undefined && tgtRaw !== null) ? parseNumeric(tgtRaw) : null;
+        if (tgtNum === null) return;
+        considered++;
+        const ok = meetsTarget(metric, scoreNum, tgtNum);
+        if (ok === true) met++;
+      });
+      const scorePercent = considered ? (met / considered) * 100 : 0;
+      const totalClosedKey = findKey(r, ['TOTAL CLOSED VOLUME','Total Closed Volume','TOTAL CLOSED VOLUME']);
+      const totalClosed = totalClosedKey ? (parseNumeric(r[totalClosedKey]) || 0) : 0;
+      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+      const empIdVal = idKey ? String(r[idKey]||'').trim() : '';
+      return {row: r, empId: empIdVal, met, considered, scorePercent, totalClosed};
+    });
+
+    // sort by score percent then total closed desc
+    entries.sort((a,b) => {
+      if (b.scorePercent !== a.scorePercent) return b.scorePercent - a.scorePercent;
+      return b.totalClosed - a.totalClosed;
+    });
+
+    // assign ranks (ties share same rank; next rank is index+1)
+    let prev = null, rank = 0;
+    entries.forEach((e,i) => {
+      if (prev === null || e.scorePercent !== prev) rank = i+1;
+      e.rank = rank;
+      prev = e.scorePercent;
+    });
+    return entries;
+  }
+
+  async function loadAll(){
+    setStatus('Loading scores & targets...');
+    missingTargetsEl.style.display = 'none';
+    missingDataEl.style.display = 'none';
+    try {
+      const [rawScores, rawTargets] = await Promise.all([
+        fetchJson(URL_SCORES).catch(()=>[]),
+        fetchJson(URL_TARGETS).catch(()=>[])
+      ]);
+      const scores = normalize(rawScores || []);
+      const targets = normalize(rawTargets || []);
+      if (!scores.length) {
+        setStatus('No data found in scores sheet', true);
+        missingDataEl.style.display = 'block';
+        missingDataEl.innerHTML = '<div class="no-data">No rows in scores sheet. Ensure the tab is named <strong>scores</strong> and published.</div>';
+        return {scores:[], targets:[]};
+      }
+      setStatus(`Loaded ${scores.length} score rows`);
+      return {scores, targets};
+    } catch (err) {
+      setStatus('Error loading sheets: ' + err.message, true);
+      throw err;
+    }
+  }
+
+  async function showForEmployee(allScores, allTargets, empId, period){
+    setStatus('Preparing view...');
+    tbody.innerHTML = '';
+    missingTargetsEl.style.display = 'none';
+    missingDataEl.style.display = 'none';
+
+    // filter rows for selected period
+    const rowsForPeriod = allScores.filter(r => {
+      const pkey = findKey(r, ['Period','period']);
+      return pkey && String(r[pkey]||'').trim() === String(period).trim();
+    });
+
+    // find employee row in that period
+    const empRow = rowsForPeriod.find(r => {
+      const idKey = findKey(r, ['Employee ID','EmpID','EmployeeID','ID']);
+      return idKey && String(r[idKey]||'').trim() === String(empId).trim();
+    });
+
+    if (!empRow) {
+      setStatus(`No data found for Employee ${empId} in ${period}`, true);
+      missingDataEl.style.display = 'block';
+      missingDataEl.innerHTML = `<div class="no-data">No row found for employee <strong>${empId}</strong> in <strong>${period}</strong>.</div>`;
+      return;
+    }
+
+    // find period-level targets (optional)
+    let targetRowForPeriod = allTargets.find(r => {
+      const pKey = findKey(r, ['Period','period']);
+      return pKey && String(r[pKey]||'').trim() === String(period).trim();
+    });
+
+    // avg total closed volume fallback
+    const avgTotalClosed = computeAverageTotalClosed(rowsForPeriod);
+
+    // build effective targets precedence: period-row -> fallback -> null
+    const effectiveTargets = {};
+    PARAMETERS.forEach(metric => {
+      if (targetRowForPeriod) {
+        const k = findKey(targetRowForPeriod, [metric]);
+        if (k) { effectiveTargets[metric] = targetRowForPeriod[k]; return; }
+      }
+      if (metric === 'TOTAL CLOSED VOLUME') {
+        effectiveTargets[metric] = avgTotalClosed != null ? avgTotalClosed : null;
+        return;
+      }
+      if (FALLBACK_TARGETS[metric] !== undefined) { effectiveTargets[metric] = FALLBACK_TARGETS[metric]; return; }
+      effectiveTargets[metric] = null;
+    });
+
+    // compute ranks and show my rank
+    const rankingEntries = computeRanks(rowsForPeriod, effectiveTargets);
+    const myEntry = rankingEntries.find(e => String(e.empId) === String(empId));
+    if (myEntry) stackRankEl.textContent = 'Stack Rank: ' + myEntry.rank;
+    else stackRankEl.textContent = 'Stack Rank: —';
+
+    // header info (left)
+    const nameKey = findKey(empRow, ['Engineer Name','Name','Engineer']);
+    const idKey = findKey(empRow, ['Employee ID','EmpID','EmployeeID','ID']);
+    engineerNameEl.textContent = nameKey ? (empRow[nameKey] || '—') : '—';
+    engineerIdEl.textContent = 'ID: ' + (idKey ? (empRow[idKey] || '—') : empId);
+
+    // populate table
+    tbody.innerHTML = '';
+    PARAMETERS.forEach(metric => {
+      const targetRaw = effectiveTargets[metric];
+      const targetNum = targetRaw != null ? parseNumeric(targetRaw) : null;
+      const scoreKey = findKey(empRow, [metric]);
+      const scoreRaw = scoreKey ? empRow[scoreKey] : null;
+      const scoreNum = parseNumeric(scoreRaw);
+      const met = (targetNum != null && scoreNum != null) ? meetsTarget(metric, scoreNum, targetNum) : null;
+      const scoreClass = met === null ? '' : (met ? 'good' : 'bad');
+
+      const targetDisplay = (targetNum != null) ? formatDisplay(targetNum, metric) : '--';
+      const scoreDisplay = (scoreNum != null) ? formatDisplay(scoreNum, metric) : (scoreRaw ? String(scoreRaw) : '--');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="col-param">${metric}</td>
+                      <td class="col-target">${targetDisplay}</td>
+                      <td class="col-score"><span class="${scoreClass}">${scoreDisplay}</span></td>`;
+      tbody.appendChild(tr);
+    });
+
+    // intentionally not showing the avg TOTAL CLOSED VOLUME note per request
+    setStatus(`Prepared view for ${engineerNameEl.textContent} — ${period}`);
+  }
+
+  async function boot(){
+    try {
+      const {scores, targets} = await loadAll();
+      const periodSet = new Set();
+      scores.forEach(r => {
+        const pk = findKey(r, ['Period','period']);
+        if (pk) { const v = String(r[pk]||'').trim(); if (v) periodSet.add(v); }
+      });
+      const periods = Array.from(periodSet).sort().reverse();
+      monthSelect.innerHTML = '';
+      monthSelect.appendChild(new Option('Latest',''));
+      periods.forEach(p => {
+        const [y,m] = p.split('-');
+        let label = p;
+        if (y && m && m.length) {
+          try { label = new Date(`${y}-${m}-01`).toLocaleString('default',{month:'long'}) + ' ' + y; } catch(e){}
+        }
+        monthSelect.appendChild(new Option(label,p));
+      });
+
+      if (URL_PERIOD) monthSelect.value = URL_PERIOD;
+      if (!monthSelect.value && periods.length) monthSelect.value = periods[0];
+
+      applyBtn.onclick = () => {
+        const emp = empInput.value.trim();
+        const per = monthSelect.value;
+        if (!emp) return alert('Enter Employee ID');
+        if (!per) return alert('Select Month');
+        const q = new URLSearchParams();
+        q.set('id', emp); q.set('period', per);
+        location.search = q.toString();
+      };
+
+      if (empInput.value.trim()) {
+        await showForEmployee(scores, targets, empInput.value.trim(), monthSelect.value);
+      } else {
+        setStatus('Select month and enter Employee ID to view data.');
+      }
+    } catch (err) {
+      setStatus('Error: ' + err.message, true);
+      console.error(err);
+    }
+  }
+
+  await boot();
+})();
 </script>
 </body>
 </html>

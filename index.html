@@ -89,12 +89,52 @@
     font-size:13px;
   }
 
-  .export-select{
-    padding:8px;
+  /* Export button + popup styles */
+  .export-wrap { position: relative; display:inline-block; }
+  .export-btn {
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
     border-radius:8px;
-    border:1px solid #dfeff3;
-    background:white;
+    padding:8px 10px;
+    background: white;
+    color: var(--muted);
+    border: 1px solid #dfeff3;
+    cursor: pointer;
+  }
+  .export-btn:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+  .export-btn:focus { outline: 3px solid rgba(0,115,157,0.12); }
+  .export-icon { width:14px; height:14px; display:inline-block; }
+
+  .export-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 160px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(10,20,30,0.12);
+    border: 1px solid #eef6f9;
+    padding:6px;
+    display: none;
+    z-index: 120;
+  }
+  .export-menu.show { display:block; }
+  .export-item {
+    display:block;
+    width:100%;
+    text-align:left;
+    padding:10px 12px;
+    background:transparent;
+    border:0;
     cursor:pointer;
+    color:#0b3b4a;
+    font-weight:600;
+    border-radius:6px;
+  }
+  .export-item:hover, .export-item:focus {
+    background: #f2fafb;
+    outline: none;
   }
 
   main{
@@ -146,7 +186,7 @@
 <header>
   <div class="header-left">
     <div class="logo" aria-hidden="true">
-      <!-- Official HPE SVG provided by you (embedded inline) -->
+      <!-- Official inline HPE SVG -->
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 144" xmlns:v="https://vecta.io/nano" role="img" aria-label="HPE logo">
         <path d="M391.2 81.27v35.46H504V144H362.4V54H504v27.27H391.2z" fill="#01a982"/>
         <path d="M276.673 0h-89.254v144h28.8v-36.607h60.008c37.914 0 59.692-21.59 59.692-53.395C335.918 21.985 314.14 0 276.673 0zm-1.881 79.793h-58.573V27.27h58.573c22.679 0 31.281 10.484 31.281 26.728 0 16.079-8.602 25.795-31.281 25.795zM391.2 40.63h-28.8V0H504v27.27H391.2v13.36zM151.2 0v144h-28.8V84.984H28.8V144H0V0h28.8v57.384h93.6V0h28.8z"/>
@@ -161,17 +201,24 @@
     <label for="monthSelect">Month</label>
     <select id="monthSelect"></select>
     <label for="empInput">Employee ID</label>
-    <input id="empInput" placeholder="" />
+    <input id="empInput" placeholder=" " />
     <button id="apply">Go</button>
 
-    <!-- single export dropdown -->
-    <label for="exportSelect" style="display:none">Export</label>
-    <select id="exportSelect" class="export-select" aria-label="Export options">
-      <option value="">Export ▾</option>
-      <option value="csv">Export CSV</option>
-      <option value="pdf">Export PDF</option>
-      <option value="print">Print</option>
-    </select>
+    <!-- Custom Export control -->
+    <div class="export-wrap" id="exportWrap">
+      <button id="exportToggle" class="export-btn" aria-haspopup="true" aria-expanded="false" aria-controls="exportMenu">
+        <svg class="export-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+          <path d="M12 16l-6-6h12z" fill="currentColor"></path>
+        </svg>
+        Export
+      </button>
+
+      <div id="exportMenu" class="export-menu" role="menu" aria-labelledby="exportToggle">
+        <button class="export-item" role="menuitem" id="exportCsvBtn">Export CSV</button>
+        <button class="export-item" role="menuitem" id="exportPdfBtn">Export PDF</button>
+        <button class="export-item" role="menuitem" id="printBtn">Print</button>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -208,7 +255,6 @@
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
 
-  // parameters considered for ranking and display
   const PARAMETERS = [
     "Onsite Response Met%",
     "Overall SLA%",
@@ -221,7 +267,6 @@
     "ECASE SLA_HG"
   ];
 
-  // fallback targets if targets sheet doesn't provide them
   const FALLBACK_TARGETS = {
     "Onsite Response Met%": 0.90,
     "Overall SLA%": 0.99,
@@ -237,7 +282,6 @@
   const monthSelect = document.getElementById('monthSelect');
   const empInput = document.getElementById('empInput');
   const applyBtn = document.getElementById('apply');
-  const exportSelect = document.getElementById('exportSelect');
   const engineerNameEl = document.getElementById('engineerName');
   const engineerIdEl = document.getElementById('engineerId');
   const stackRankEl = document.getElementById('stackRank');
@@ -245,12 +289,18 @@
   const missingTargetsEl = document.getElementById('missingTargets');
   const missingDataEl = document.getElementById('missingData');
 
+  const exportWrap = document.getElementById('exportWrap');
+  const exportToggle = document.getElementById('exportToggle');
+  const exportMenu = document.getElementById('exportMenu');
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  const exportPdfBtn = document.getElementById('exportPdfBtn');
+  const printBtn = document.getElementById('printBtn');
+
   const params = new URLSearchParams(window.location.search);
   let EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
   if (EMP_ID) empInput.value = EMP_ID;
 
-  // small status helper (logs to console so UI remains clean)
   function setStatus(msg, isError=false){
     console.log('Status:', msg);
   }
@@ -554,6 +604,31 @@
     }, 600);
   }
 
+  // ---------- Export menu behavior ----------
+  function openExportMenu() {
+    exportMenu.classList.add('show');
+    exportToggle.setAttribute('aria-expanded','true');
+    // focus first item for keyboard users
+    const first = exportMenu.querySelector('.export-item');
+    if (first) first.focus();
+    // attach outside click handler
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+  }
+  function closeExportMenu() {
+    exportMenu.classList.remove('show');
+    exportToggle.setAttribute('aria-expanded','false');
+    document.removeEventListener('click', onDocClick);
+    document.removeEventListener('keydown', onKeyDown);
+    exportToggle.focus();
+  }
+  function onDocClick(e) {
+    if (!exportWrap.contains(e.target)) closeExportMenu();
+  }
+  function onKeyDown(e) {
+    if (e.key === 'Escape') closeExportMenu();
+  }
+
   // ---------- Wiring ----------
   async function boot(){
     try {
@@ -588,25 +663,45 @@
         location.search = q.toString();
       };
 
-      // handle export selection
-      exportSelect.addEventListener('change', (e) => {
-        const val = e.target.value;
-        // reset selector to placeholder after action
-        (async () => {
-          if (!val) return;
-          if (val === 'csv') {
-            const name = document.getElementById('engineerName').textContent.replace(/\s+/g,'_') || 'engineer';
-            const period = monthSelect.value || (new Date().toISOString().slice(0,7));
-            exportTableToCSV(`${name}_${period}_scorecard.csv`);
-          } else if (val === 'pdf') {
-            const periodLabel = monthSelect.options[monthSelect.selectedIndex]?.text || '';
-            exportTableToPDF(periodLabel);
-          } else if (val === 'print') {
-            window.print();
-          }
-          // small delay so user sees selection change (optional)
-          setTimeout(()=> { exportSelect.value = ''; }, 200);
-        })();
+      // export toggle open/close
+      exportToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (exportMenu.classList.contains('show')) closeExportMenu();
+        else openExportMenu();
+      });
+
+      // keyboard support for toggle
+      exportToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openExportMenu();
+        }
+      });
+
+      // menu item listeners
+      exportCsvBtn.addEventListener('click', () => {
+        const name = document.getElementById('engineerName').textContent.replace(/\s+/g,'_') || 'engineer';
+        const period = monthSelect.value || (new Date().toISOString().slice(0,7));
+        exportTableToCSV(`${name}_${period}_scorecard.csv`);
+        closeExportMenu();
+      });
+      exportPdfBtn.addEventListener('click', () => {
+        const periodLabel = monthSelect.options[monthSelect.selectedIndex]?.text || '';
+        exportTableToPDF(periodLabel);
+        closeExportMenu();
+      });
+      printBtn.addEventListener('click', () => {
+        window.print();
+        closeExportMenu();
+      });
+
+      // close menu on focusout (optional additional UX)
+      exportMenu.addEventListener('focusout', (e) => {
+        // if focus moved outside the menu and toggle, close
+        setTimeout(() => {
+          const active = document.activeElement;
+          if (!exportWrap.contains(active)) closeExportMenu();
+        }, 10);
       });
 
       // auto-show if id+period in URL, otherwise prompt
@@ -618,7 +713,6 @@
         setStatus('Select month and enter Employee ID to view data.');
       }
 
-      // allow enter key to trigger apply
       empInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') applyBtn.click(); });
 
     } catch (err) {

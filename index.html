@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Score Card</title>
+<title>HPE ScoreCard — All Metrics Included</title>
 <style>
   :root{
     --hpe-blue:#00739D;
@@ -22,25 +22,44 @@
     -moz-osx-font-smoothing:grayscale;
   }
 
-  /* header - centered brand, controls on right */
+  /* header layout: left=logo, center=brand, right=controls */
   header{
     position:fixed;
     top:0;
     left:0;
-    right:1;
+    right:0;
     display:flex;
-    justify-content:left;      /* center overall header contents */
-    align-items:left;
-    padding:18px 28px;
+    align-items:center;
+    padding:12px 20px;
     background:#fff;
     box-shadow:0 4px 16px rgba(0,0,0,0.05);
     z-index:30;
-    gap:20px;
+    gap:12px;
   }
 
-  .brand{
+  .header-left { display:flex; align-items:center; width:160px; flex-shrink:0; }
+  .logo {
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    gap:10px;
+  }
+  .logo img {
+    height:34px;
+    width:auto;
+    display:block;
+    object-fit:contain;
+  }
+  .logo .placeholder {
+    font-size:14px;
+    color:#6b7b86;
+    font-weight:700;
+  }
+
+  .brand {
     text-align:center;
-    flex:1;                      /* take available center area */
+    flex:1;
+    min-width:0;
   }
   .brand .title{
     font-weight:700;
@@ -59,7 +78,8 @@
     gap:10px;
     align-items:center;
     justify-content:flex-end;
-    flex:1;                      /* push controls to right */
+    width:360px;
+    flex-shrink:0;
   }
 
   select,input{padding:8px;border-radius:8px;border:1px solid #dfeff3;background:white}
@@ -91,7 +111,6 @@
     animation: fadeLift 520ms cubic-bezier(.2,.9,.25,1) forwards;
   }
 
-  /* subtle entrance animation */
   @keyframes fadeLift {
     0% { opacity: 0; transform: translateY(16px) scale(0.997); }
     60% { opacity: 1; transform: translateY(-4px) scale(1.001); }
@@ -122,56 +141,73 @@
   .no-data{padding:12px;border-radius:8px;background:#fff6f6;border:1px solid #ffd6d6;color:#8b1a1a;margin-top:12px}
   .avg-note{margin-top:10px;font-size:13px;color:#4d6a6f}
 
+  @media (max-width:1000px){
+    .controls{width:300px}
+    .header-left{width:120px}
+  }
   @media (max-width:900px){
-    header{padding:12px 14px}
+    header{padding:10px 12px}
     main{padding:18px}
     .card{padding:16px}
   }
 
-  /* mobile: stack brand above controls and center */
+  /* mobile: stack brand above controls and center, logo small */
   @media (max-width:600px){
     header{
       flex-direction:column;
       align-items:center;
       gap:6px;
     }
-    .brand{order:0; flex:none}
-    .controls{order:1; width:100%; justify-content:center; flex-wrap:wrap; gap:8px}
-    .controls label{display:none} /* save space on small screens */
+    .header-left{order:0;width:auto}
+    .brand{order:1; width:100%}
+    .controls{order:2; width:100%; justify-content:center; flex-wrap:wrap; gap:8px}
+    .controls label{display:none}
     .col-param{width:60%}
+    .logo img{height:28px}
   }
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">
-    <div class="title">ASC Server Support</div>
+  <!-- left: logo -->
+  <div class="header-left">
+    <div class="logo" id="logoContainer">
+      <!-- image will be injected by JS; fallback placeholder shown -->
+      <img id="headerLogo" src="" alt="Logo" style="display:none"/>
+      <div id="logoPlaceholder" class="placeholder">HPE</div>
+    </div>
   </div>
 
+  <!-- center: title -->
+  <div class="brand">
+    <div class="title">ScoreCard</div>
+    <div class="subtitle">HPE — All metrics included for Stack Rank</div>
+  </div>
+
+  <!-- right: controls -->
   <div class="controls">
     <label>Month</label>
     <select id="monthSelect"></select>
     <label>Employee ID</label>
-    <input id="empInput" placeholder=" " />
+    <input id="empInput" placeholder="eg 60154741" />
     <button id="apply">Apply</button>
   </div>
 </header>
 
 <main>
   <div class="card" role="region" aria-label="Score Card">
-    <!-- top row: left side engineer info (moved from right to left) -->
+    <!-- top row: left side engineer info -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
       <div class="top-left" style="flex:1">
         <div id="engineerName" class="engineer-name">—</div>
         <div id="engineerId" class="engineer-id">ID: —</div>
         <div id="stackRank" class="stack-rank">Stack Rank: —</div>
       </div>
-      <!-- empty right side for spacing, keeps layout balanced -->
       <div style="width:160px;flex-shrink:0"></div>
     </div>
 
     <!-- Card title placed directly above the table -->
-    <div class="card-title">Score Card</div>
+    <div class="card-title">ScoreCard</div>
 
     <div id="content">
       <table id="compareTable" aria-label="Parameters comparison">
@@ -189,6 +225,43 @@
 
 <script>
 (async function(){
+  // You can set logo via URL param: ?logo=https://.../hpe.png
+  const params = new URLSearchParams(window.location.search);
+  const LOGO_URL_FROM_QUERY = params.get('logo') || '';
+  const LOCAL_LOGO_FILENAME = 'logo.png'; // put a file named logo.png next to this HTML to use by default
+
+  const logoImgEl = document.getElementById('headerLogo');
+  const logoPlaceholder = document.getElementById('logoPlaceholder');
+
+  // try query param first, then local file, else keep placeholder
+  async function trySetLogo() {
+    if (LOGO_URL_FROM_QUERY) {
+      logoImgEl.src = LOGO_URL_FROM_QUERY;
+      logoImgEl.style.display = 'block';
+      logoPlaceholder.style.display = 'none';
+      return;
+    }
+
+    // test if local logo exists by trying to fetch it
+    try {
+      const r = await fetch(LOCAL_LOGO_FILENAME, {method:'HEAD'});
+      if (r.ok) {
+        logoImgEl.src = LOCAL_LOGO_FILENAME;
+        logoImgEl.style.display = 'block';
+        logoPlaceholder.style.display = 'none';
+        return;
+      }
+    } catch(e) {
+      // ignore errors — keep placeholder
+    }
+    // no logo found -> keep placeholder text
+    logoImgEl.style.display = 'none';
+    logoPlaceholder.style.display = 'block';
+  }
+
+  await trySetLogo();
+
+  // ---------- Existing app code below ----------
   const SHEET_ID = "1D7If5Nf1i2_f3OvUCxySkrE_IWUy_YgSl95-hDPDinw";
   const URL_SCORES = `https://opensheet.elk.sh/${SHEET_ID}/scores`;
   const URL_TARGETS = `https://opensheet.elk.sh/${SHEET_ID}/targets`;
@@ -227,13 +300,12 @@
   const missingTargetsEl = document.getElementById('missingTargets');
   const missingDataEl = document.getElementById('missingData');
 
-  const params = new URLSearchParams(window.location.search);
   let EMP_ID = (params.get('id') || '').trim();
   const URL_PERIOD = (params.get('period') || '').trim();
   if (EMP_ID) empInput.value = EMP_ID;
 
   function setStatus(msg, isError=false){
-    // status element removed visually; still keep console-friendly status via log
+    // intentionally no visual status now; use console for debugging
     console.log('Status:', msg);
   }
 
@@ -275,7 +347,6 @@
     return n;
   }
 
-  // metric-aware formatting
   function formatDisplay(val, metric = '') {
     if (val == null) return '--';
     const isPercentMetric = /Onsite Response Met%|Overall SLA%|100% DA|ECASE SLA_M2M|ECASE SLA_HG/i.test(metric);
@@ -288,7 +359,7 @@
     const n = parseNumeric(val);
     if (n == null) return String(val);
     if (isPercentMetric) {
-      return (n <= 1 ? (n * 100).toFixed(02) : n.toFixed(2)) + '%';
+      return (n <= 1 ? (n * 100).toFixed(2) : n.toFixed(2)) + '%';
     }
     return n.toFixed(2);
   }
@@ -411,7 +482,6 @@
       return;
     }
 
-    // find period-level targets (optional)
     let targetRowForPeriod = allTargets.find(r => {
       const pKey = findKey(r, ['Period','period']);
       return pKey && String(r[pKey]||'').trim() === String(period).trim();
@@ -463,8 +533,6 @@
                       <td class="col-score"><span class="${scoreClass}">${scoreDisplay}</span></td>`;
       tbody.appendChild(tr);
     });
-
-    // NOTE: removed the avg TOTAL CLOSED VOLUME note as requested
 
     setStatus(`Showing ${engineerNameEl.textContent} — ${period}`);
   }
